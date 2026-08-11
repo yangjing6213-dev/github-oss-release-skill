@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate Skill
+        run: python scripts/validate_skill.py .
+      - name: Run scenario tests
+        run: python scripts/run_scenario_tests.py
+      - name: Validate Chinese result policy
+        run: python scripts/validate_chinese_result_policy.py
+      - name: Run smoke tests
+        run: python tests/test-scripts.py
+      - name: Validate UTF-8 text
+        run: python scripts/validate_utf8.py --root .
+      - name: Check local Markdown links
+        run: python scripts/check_markdown_links.py .
+      - name: Scan sensitive content
+        run: python scripts/scan_sensitive_content.py .

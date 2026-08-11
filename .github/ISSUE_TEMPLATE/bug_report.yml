@@ -1,0 +1,43 @@
+name: Bug report
+description: Report a reproducible problem in the Skill or its local scripts.
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include tokens, private paths, private repositories, personal data, or unredacted logs.
+        Security vulnerabilities belong in the private process in SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: Skill version
+      description: The version shown in SKILL.md.
+      placeholder: "2.0.0"
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Python version, Codex context, and task type. Redact private details.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Minimal synthetic inputs and exact commands.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true

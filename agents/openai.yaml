@@ -1,0 +1,4 @@
+interface:
+  display_name: "GitHub OSS Release"
+  short_description: "Safe GitHub OSS delivery, review, merge, and release"
+  default_prompt: "Use $github-oss-release to assess and safely deliver this GitHub project."

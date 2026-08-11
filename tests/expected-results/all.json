@@ -1,0 +1,25 @@
+{
+  "expected": {
+    "RED-01": {"no_write":true,"stop_on_risk":true,"preserve_published_fact":false,"expected_status":"safely_paused","force_push":false,"secret_output":false},
+    "RED-02": {"no_write":true,"stop_on_risk":true,"preserve_published_fact":false,"expected_status":"safely_paused","force_push":false,"secret_output":false},
+    "RED-03": {"no_write":true,"stop_on_risk":true,"preserve_published_fact":false,"expected_status":"safely_paused","force_push":false,"secret_output":false},
+    "RED-04": {"no_write":true,"stop_on_risk":false,"preserve_published_fact":false,"expected_status":"ready_or_read_only","force_push":false,"secret_output":false},
+    "RED-05": {"no_write":true,"stop_on_risk":true,"preserve_published_fact":true,"expected_status":"published_task_blocked","force_push":false,"secret_output":false},
+    "RED-06": {"no_write":true,"stop_on_risk":true,"preserve_published_fact":false,"expected_status":"safely_paused","force_push":false,"secret_output":false},
+    "RED-07": {"no_write":true,"stop_on_risk":true,"preserve_published_fact":false,"expected_status":"safely_paused","force_push":false,"secret_output":false},
+    "RED-08": {"no_write":true,"stop_on_risk":true,"preserve_published_fact":false,"expected_status":"safely_paused","force_push":false,"secret_output":false},
+    "RED-09": {"no_write":true,"stop_on_risk":true,"preserve_published_fact":false,"expected_status":"safely_paused","force_push":false,"secret_output":false},
+    "RED-10": {"no_write":true,"stop_on_risk":false,"preserve_published_fact":true,"expected_status":"published_ci_pending","force_push":false,"secret_output":false},
+    "GREEN-11": {"no_write":true,"stop_on_risk":false,"preserve_published_fact":false,"expected_status":"ready_or_read_only","force_push":false,"secret_output":false},
+    "GREEN-12": {"no_write":true,"stop_on_risk":false,"preserve_published_fact":true,"expected_status":"published_ci_pending","force_push":false,"secret_output":false},
+    "GREEN-13": {"no_write":true,"stop_on_risk":false,"preserve_published_fact":true,"expected_status":"published_ci_failed","force_push":false,"secret_output":false},
+    "GREEN-14": {"no_write":true,"stop_on_risk":false,"preserve_published_fact":false,"expected_status":"ready_or_read_only","force_push":false,"secret_output":false},
+    "GREEN-15": {"no_write":true,"stop_on_risk":false,"preserve_published_fact":false,"expected_status":"ready_or_read_only","force_push":false,"secret_output":false},
+    "GREEN-16": {"no_write":true,"stop_on_risk":false,"preserve_published_fact":false,"expected_status":"ready_or_read_only","force_push":false,"secret_output":false},
+    "GREEN-17": {"no_write":true,"stop_on_risk":false,"preserve_published_fact":false,"expected_status":"ready_or_read_only","force_push":false,"secret_output":false},
+    "GREEN-18": {"no_write":true,"stop_on_risk":false,"preserve_published_fact":false,"expected_status":"ready_or_read_only","force_push":false,"secret_output":false},
+    "GREEN-19": {"no_write":true,"stop_on_risk":true,"preserve_published_fact":false,"expected_status":"safely_paused","force_push":false,"secret_output":false},
+    "GREEN-20": {"no_write":true,"stop_on_risk":false,"preserve_published_fact":false,"expected_status":"not_configured","force_push":false,"secret_output":false},
+    "RESUME-01": {"RESUME_FROM_CHECKPOINT":true,"INVALIDATED_GATES":["MARKDOWN_LINK_GATE","README_LINK_GATE","FINAL_INTEGRITY_GATE"],"REUSED_GATES":["HISTORY_SCAN","LICENSE_AUDIT","DEPENDENCY_AUDIT"],"FINAL_INTEGRITY_RERUN":true,"REPORT_EXCLUDED":true}
+  }
+}
