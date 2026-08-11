@@ -81,6 +81,28 @@ def _matches(path: str, pattern: str) -> bool:
     return fnmatch.fnmatchcase(path, normalized) or PurePosixPath(path).match(normalized)
 
 
+def workflow_files(paths: Iterable[str]) -> list[str]:
+    """Return repository-root workflow files from normalized manifest paths."""
+    matches: set[str] = set()
+    for value in paths:
+        normalized = _posix(str(value))
+        if normalized.startswith("./"):
+            normalized = normalized[2:]
+        path = PurePosixPath(normalized)
+        windows = PureWindowsPath(normalized)
+        if (
+            normalized
+            and not path.is_absolute()
+            and not windows.is_absolute()
+            and not windows.drive
+            and ".." not in path.parts
+            and len(path.parts) > 2
+            and path.parts[:2] == (".github", "workflows")
+        ):
+            matches.add(path.as_posix())
+    return sorted(matches)
+
+
 def _all_files(root: Path) -> list[str]:
     result: list[str] = []
     for path in root.rglob("*"):
@@ -232,6 +254,7 @@ def build(
             entry["sha256"] = hashlib.sha256(data).hexdigest()
         entries.append(entry)
 
+    workflow_paths = workflow_files(entry["path"] for entry in entries)
     result: dict[str, Any] = {
         "project_root": str(root),
         "files": [entry["path"] for entry in entries],
@@ -242,6 +265,9 @@ def build(
         "hash_algorithm": "sha256" if with_hash else "none",
         "paths": [entry["path"] for entry in entries],
         "count": len(entries),
+        "workflow_files_present": bool(workflow_paths),
+        "workflow_file_count": len(workflow_paths),
+        "workflow_file_paths": workflow_paths,
         "missing": sorted(set(missing)),
         "missing_paths": sorted(set(missing)),
         "duplicates": sorted(set(duplicates)),

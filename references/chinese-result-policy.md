@@ -1,8 +1,8 @@
-# 全局中文结果政策 V2.0
+# 全局中文结果政策 V2.1
 
 ```text
-CHINESE_RESULT_POLICY_VERSION = 2
-SKILL_VERSION = 2.0.0
+CHINESE_RESULT_POLICY_VERSION = 2.1
+SKILL_VERSION = 2.1.0
 ```
 
 本文件适用于首次发布、后续更新、Pull Request、Dependabot、CI/CodeQL、认证、视觉资产、Release、本地标准化、安全审计和只读检查。它只规定最终结果的表达与状态计算，不授权任何 GitHub 写入，也不改变其他安全规则。
@@ -80,6 +80,18 @@ INCIDENT_RECOVERY
 - 存在阻断、失败、人工确认或尚未批准的必要动作时写“需要”。
 - 任务完成或只需等待平台自动检查且用户无需操作时写“不需要”。
 - 只给一个主要下一步。选择能关闭最高优先级阻断或完成当前任务的一个动作；不要堆叠并列建议。
+
+### 5. GitHub Actions 工作流权限阻断
+
+当 `WORKFLOW_SCOPE_PREFLIGHT_REQUIRED = YES` 且
+`WORKFLOW_SCOPE_STATUS = MISSING` 或 `NOT_VERIFIED` 时，状态使用：
+
+`GitHub Actions 工作流权限尚未准备完成`
+
+结论必须说明项目包含工作流文件、计划通过 HTTPS 凭据推送，且已在
+创建远程仓库或更新 Push 前停止。保留 `REPOSITORY_CREATED = NO`、
+`GITHUB_WRITE_PERFORMED = NO`。下一步只写：授权为当前正确账号补充
+workflow scope。不得写“仓库创建失败”或“项目已发布”。
 
 ## 固定输出顺序
 
@@ -172,6 +184,7 @@ GitHub 是否发生变化：
 | Dependabot 合并及合并后检查通过 | 依赖更新已安全合并 | 指定更新已经合并 |
 | 认证就绪且环境 Token 不冲突 | GitHub 登录认证已恢复正常 | GitHub 仓库没有变化 |
 | 认证未就绪、账号不匹配或环境 Token 冲突 | GitHub 认证仍需处理 | 解释 401/403 等中文含义 |
+| Manifest 含工作流且 HTTPS 凭据缺少或未确认 workflow scope | GitHub Actions 工作流权限尚未准备完成 | 创建仓库或 Push 前停止，等待独立权限授权 |
 | 本地视觉资产已生成且需人工复核 | 视觉资产已生成，等待人工确认 | 尚未提交或推送 |
 | 视觉资产发布事实成立 | 视觉资产已成功更新到 GitHub | 仅在远程事实已验证时使用 |
 | 本地标准化完成 | 本地开源整理已完成 | 不等于已经发布 |
@@ -246,6 +259,8 @@ Commit SHA 默认只显示前 7 至 10 位，除非用户明确要求完整值�
 - “没有 GitHub 写入”不能与 `GITHUB_WRITE_PERFORMED=YES` 并存。
 - Dependabot、认证、视觉或只读后续任务的失败不能抹掉仓库既有发布事实。
 - 旧凭据路径返回 `403` 不能直接推出新账号被暂停。
+- workflow scope 缺失时不能写“仓库创建失败”，因为创建动作尚未发生。
+- `APPROVE_GITHUB_PUBLISH` 不能写成已授权 `APPROVE_GITHUB_WORKFLOW_SCOPE_REFRESH`。
 - 用户摘要中的 GitHub 变化必须与远程事实和机器字段一致。
 - 每个最终结果只给一个主要下一步；模糊的“视情况而定”“可以考虑”不合格。
 
@@ -273,5 +288,6 @@ python scripts/validate_chinese_result_policy.py
 12. 视觉资产等待人工复核。
 13. 已发布仓库的后续任务被阻断，仍保留既有发布事实。
 14. 无 GitHub 写入的本地或只读任务完成。
+15. Manifest 含工作流、HTTPS OAuth scope 缺失，创建仓库前安全停止。
 
 全部场景通过后才可输出 `GLOBAL_SKILL_VALIDATION = PASS`。结构验证还必须确认中文摘要存在且最先、技术详情存在、机器字段保留、单一明确下一步、无状态矛盾、无硬编码项目或账号、无敏感信息输出。

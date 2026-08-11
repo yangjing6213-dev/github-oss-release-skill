@@ -37,6 +37,7 @@ APPROVAL_WORDS = {
     "APPROVE_GITHUB_RELEASE",
     "APPROVE_GIT_HISTORY_REMEDIATION",
     "APPROVE_REMOTE_DESTRUCTIVE_CHANGE",
+    "APPROVE_GITHUB_WORKFLOW_SCOPE_REFRESH",
 }
 SECRET_RE = re.compile(
     r"(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----)",
@@ -238,10 +239,70 @@ def validate(root_value: str | Path, *, project_name: str | None = None) -> dict
         errors.append({"code": "contradictory_force_push_rule"})
     checks["authorization_consistency"] = not any(item.get("code") == "authorization_words_missing" for item in errors)
 
+    workflow_markers = {
+        "SKILL.md": [
+            "references/workflow-scope-preflight.md",
+            "APPROVE_GITHUB_WORKFLOW_SCOPE_REFRESH",
+        ],
+        "references/workflow-scope-preflight.md": [
+            "WORKFLOW_SCOPE_PREFLIGHT_REQUIRED",
+            "PUSH_CREDENTIAL_SOURCE_MATCH",
+            "REPOSITORY_CREATION_ALLOWED = NO",
+            "APPROVE_GITHUB_PUBLISH does not authorize credential changes",
+        ],
+        "references/initial-publication.md": [
+            "REPOSITORY_CREATION_ALLOWED = NO",
+            "PUSH_ALLOWED = NO",
+        ],
+        "references/project-updates.md": [
+            "WORKFLOW_SCOPE_CHECK_BEFORE_PUSH = FAIL",
+        ],
+        "references/local-reports-and-resume.md": [
+            "WORKFLOW_SCOPE_EVIDENCE_FINGERPRINT",
+            "WORKFLOW_SCOPE_CHECKED_AT",
+        ],
+        "references/chinese-result-policy.md": [
+            "GitHub Actions 工作流权限尚未准备完成",
+        ],
+        "scripts/inspect_auth.py": [
+            "workflow_scope_status",
+            "credential_source_match",
+        ],
+        "scripts/build_release_manifest.py": [
+            "workflow_file_paths",
+        ],
+        "scripts/run_scenario_tests.py": [
+            "WORKFLOW_IDS",
+        ],
+    }
+    workflow_errors: list[dict[str, Any]] = []
+    for relative, markers in workflow_markers.items():
+        path = root / relative
+        if not path.is_file():
+            workflow_errors.append({"code": "workflow_scope_file_missing", "path": relative})
+            continue
+        content = _read(path)
+        for marker in markers:
+            if marker not in content:
+                workflow_errors.append(
+                    {
+                        "code": "workflow_scope_marker_missing",
+                        "path": relative,
+                        "detail": marker,
+                    }
+                )
+    inspect_auth_text = _read(root / "scripts" / "inspect_auth.py")
+    if "subprocess.run([\"gh\", \"auth\", \"refresh\"" in inspect_auth_text:
+        workflow_errors.append({"code": "inspect_auth_mutates_credentials"})
+    errors.extend(workflow_errors)
+    checks["workflow_scope_preflight"] = not workflow_errors
+
+    version_match = re.search(r"SKILL_VERSION\s*=\s*(\d+\.\d+\.\d+)", text)
+
     return {
         "skill_root": str(root),
         "skill_name": name or None,
-        "skill_version": "2.0.0" if "2.0.0" in text else None,
+        "skill_version": version_match.group(1) if version_match else None,
         "checks": checks,
         "errors": errors,
         "valid": not errors,

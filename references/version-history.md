@@ -1,5 +1,14 @@
 # Version history
 
+## 2.1.0
+
+- Added exact-manifest workflow detection and planned push protocol/credential
+  source classification.
+- Added HTTPS OAuth/classic-PAT workflow permission preflight before repository
+  creation and before workflow-file update pushes.
+- Added independent scope-refresh authorization, checkpoint evidence fields,
+  Chinese permission-blocked status, and ten local workflow scenarios.
+
 ## 2.0.0
 
 - Split routing, authentication, compliance, discovery, publication strategy,

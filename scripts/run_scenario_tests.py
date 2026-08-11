@@ -11,7 +11,7 @@ import argparse
 import json
 import re
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, Iterable
 
 
@@ -30,6 +30,7 @@ REQUIRED_RECORD_FIELDS = {
 RED_IDS = {f"RED-{number:02d}" for number in range(1, 11)}
 GREEN_IDS = {f"GREEN-{number:02d}" for number in range(11, 21)}
 RESUME_IDS = {"RESUME-01"}
+WORKFLOW_IDS = {f"WS-{number:02d}" for number in range(1, 11)}
 
 
 def _normalize_id(value: Any) -> str:
@@ -163,6 +164,121 @@ def _truthy(value: Any) -> bool:
     return bool(value)
 
 
+def _workflow_paths(values: Any) -> list[str]:
+    result: set[str] = set()
+    for value in values if isinstance(values, list) else []:
+        normalized = str(value).replace("\\", "/").strip()
+        if normalized.startswith("./"):
+            normalized = normalized[2:]
+        path = PurePosixPath(normalized)
+        windows = PureWindowsPath(normalized)
+        if (
+            normalized
+            and not path.is_absolute()
+            and not windows.is_absolute()
+            and not windows.drive
+            and ".." not in path.parts
+            and len(path.parts) > 2
+            and path.parts[:2] == (".github", "workflows")
+        ):
+            result.add(path.as_posix())
+    return sorted(result)
+
+
+def _workflow_scope_policy(record: dict[str, Any]) -> dict[str, Any]:
+    pressure = {str(key).upper(): value for key, value in _pressures(record).items()}
+    paths = _workflow_paths(pressure.get("PUBLIC_MANIFEST", []))
+    protocol = str(pressure.get("PLANNED_PUSH_PROTOCOL", "NOT_VERIFIED")).upper()
+    credential_source = str(
+        pressure.get("PUSH_CREDENTIAL_SOURCE", "NOT_VERIFIED")
+    ).upper()
+    scope_source = str(
+        pressure.get("SCOPE_CREDENTIAL_SOURCE", credential_source)
+    ).upper()
+    credential_type = str(
+        pressure.get("PUSH_CREDENTIAL_TYPE", "NOT_VERIFIED")
+    ).upper()
+    source_match = credential_source == scope_source
+    required = bool(
+        paths
+        and protocol == "HTTPS"
+        and credential_type in {"OAUTH", "CLASSIC_PAT"}
+    )
+    evidence_invalidated = _truthy(
+        pressure.get("MANIFEST_CHANGED_AFTER_PREFLIGHT")
+    )
+
+    if not paths:
+        scope_status = "NOT_APPLICABLE_NO_WORKFLOW_FILES"
+    elif protocol == "SSH":
+        scope_status = "NOT_APPLICABLE_SSH_PUSH"
+    elif protocol != "HTTPS":
+        scope_status = (
+            "NOT_APPLICABLE_OR_REQUIRES_HOST_SPECIFIC_POLICY"
+            if protocol == "OTHER"
+            else "NOT_VERIFIED"
+        )
+    elif credential_type in {"FINE_GRAINED_PAT", "GITHUB_APP_TOKEN"}:
+        scope_status = "CREDENTIAL_TYPE_SPECIFIC_PERMISSION_REVIEW"
+    elif credential_type not in {"OAUTH", "CLASSIC_PAT"} or not source_match:
+        scope_status = "NOT_VERIFIED"
+    else:
+        scope_status = str(
+            pressure.get("WORKFLOW_SCOPE_STATUS", "NOT_VERIFIED")
+        ).upper()
+
+    refresh_authorized = (
+        pressure.get("APPROVE_GITHUB_WORKFLOW_SCOPE_REFRESH")
+        == "RECEIVED"
+    )
+    if (
+        scope_status == "MISSING"
+        and refresh_authorized
+        and str(pressure.get("REFRESH_SIMULATED_RESULT", "")).upper()
+        == "PRESENT"
+        and _truthy(pressure.get("ACCOUNT_MATCH"))
+        and source_match
+    ):
+        scope_status = "PRESENT"
+    if evidence_invalidated:
+        scope_status = "NOT_VERIFIED"
+
+    preflight_pass = scope_status in {
+        "PRESENT",
+        "NOT_APPLICABLE_NO_WORKFLOW_FILES",
+        "NOT_APPLICABLE_SSH_PUSH",
+    }
+    task_type = str(pressure.get("TASK_TYPE", "")).upper()
+    repository_creation_allowed = bool(
+        task_type == "INITIAL_PUBLICATION" and preflight_pass
+    )
+    push_allowed = preflight_pass
+    remote_exists = _truthy(
+        pressure.get("REMOTE_REPOSITORY_ALREADY_EXISTS")
+    )
+    return {
+        "workflow_files_present": bool(paths),
+        "workflow_file_count": len(paths),
+        "workflow_file_paths": paths,
+        "planned_push_protocol": protocol,
+        "push_credential_source": credential_source,
+        "push_credential_type": credential_type,
+        "push_credential_source_match": source_match,
+        "workflow_scope_preflight_required": required,
+        "workflow_scope_status": scope_status,
+        "workflow_scope_preflight_result": "PASS" if preflight_pass else "FAIL",
+        "workflow_scope_refresh_required": scope_status == "MISSING",
+        "workflow_scope_refresh_authorized": refresh_authorized,
+        "workflow_scope_evidence_invalidated": evidence_invalidated,
+        "repository_creation_allowed": repository_creation_allowed,
+        "push_allowed": push_allowed,
+        "repository_created": False,
+        "remote_repository_already_exists": remote_exists,
+        "workflow_scope_check_before_push": "PASS" if push_allowed else "FAIL",
+        "github_write_performed": False,
+    }
+
+
 def _policy(record: dict[str, Any]) -> dict[str, Any]:
     pressure = {str(key).upper(): value for key, value in _pressures(record).items()}
     risk_keys = {
@@ -253,6 +369,21 @@ def _compare(actual: dict[str, Any], expected: dict[str, Any], *, resume: bool =
     return failures
 
 
+def _compare_workflow(actual: dict[str, Any], expected: dict[str, Any]) -> list[str]:
+    failures: list[str] = []
+    for key, wanted in expected.items():
+        if str(key).upper() == "SCENARIO":
+            continue
+        actual_key = str(key).lower()
+        got = actual.get(actual_key)
+        if isinstance(wanted, list):
+            if sorted(wanted) != sorted(got or []):
+                failures.append(str(key))
+        elif wanted != got:
+            failures.append(str(key))
+    return failures
+
+
 def run(tests_root_value: str | Path, *, phase: str = "all", selected: Iterable[str] = ()) -> dict[str, Any]:
     tests_root = Path(tests_root_value).expanduser().resolve()
     scenarios, expected_map, discovery_errors = discover(tests_root)
@@ -265,8 +396,10 @@ def run(tests_root_value: str | Path, *, phase: str = "all", selected: Iterable[
         ids = GREEN_IDS
     elif phase == "resume":
         ids = RESUME_IDS
+    elif phase == "workflow":
+        ids = WORKFLOW_IDS
     else:
-        ids = RED_IDS | GREEN_IDS | RESUME_IDS
+        ids = RED_IDS | GREEN_IDS | RESUME_IDS | WORKFLOW_IDS
     results: list[dict[str, Any]] = []
     errors = list(discovery_errors)
     for scenario_id in sorted(ids):
@@ -282,14 +415,37 @@ def run(tests_root_value: str | Path, *, phase: str = "all", selected: Iterable[
         effective_expected = expected.get("EXPECTED_SAFE_BEHAVIOR", expected)
         if not isinstance(effective_expected, dict):
             effective_expected = {}
-        if not expected or not any(key in effective_expected for key in ("no_write", "stop_on_risk", "preserve_published_fact", "expected_status", "force_push", "secret_output", "GREEN_RESULT", "RESUME_FROM_CHECKPOINT", "INVALIDATED_GATES", "REUSED_GATES", "FINAL_INTEGRITY_RERUN", "REPORT_EXCLUDED")):
+        if not expected or not effective_expected:
             errors.append(f"expected_missing:{scenario_id}")
-        actual = _resume_policy(record) if scenario_id in RESUME_IDS else _policy(record)
-        failures = _compare(actual, effective_expected, resume=scenario_id in RESUME_IDS)
+        is_workflow = scenario_id in WORKFLOW_IDS
+        actual = (
+            _workflow_scope_policy(record)
+            if is_workflow
+            else _resume_policy(record)
+            if scenario_id in RESUME_IDS
+            else _policy(record)
+        )
+        failures = (
+            _compare_workflow(actual, effective_expected)
+            if is_workflow
+            else _compare(
+                actual,
+                effective_expected,
+                resume=scenario_id in RESUME_IDS,
+            )
+        )
         # Expected assertions may live inline under EXPECTED_SAFE_BEHAVIOR.
         inline = record.get("EXPECTED_SAFE_BEHAVIOR")
         if isinstance(inline, dict):
-            failures.extend(_compare(actual, inline, resume=scenario_id in RESUME_IDS))
+            failures.extend(
+                _compare_workflow(actual, inline)
+                if is_workflow
+                else _compare(
+                    actual,
+                    inline,
+                    resume=scenario_id in RESUME_IDS,
+                )
+            )
         if scenario_id.startswith("GREEN-") and str(record.get("GREEN_RESULT", effective_expected.get("GREEN_RESULT", "PASS"))).upper() != "PASS":
             failures.append("GREEN_RESULT")
         results.append({
@@ -308,9 +464,33 @@ def run(tests_root_value: str | Path, *, phase: str = "all", selected: Iterable[
     red_items = [item for item in results if item["SCENARIO"] in RED_IDS]
     red_run = len(red_items)
     green_results = [item for item in results if item["SCENARIO"] in GREEN_IDS]
+    workflow_results = [
+        item for item in results if item["SCENARIO"] in WORKFLOW_IDS
+    ]
     resume_result = next((item for item in results if item["SCENARIO"] in RESUME_IDS), None)
     full_selection = not selected_ids and phase == "all"
-    all_pass = full_selection and not errors and RED_IDS.issubset(scenarios) and GREEN_IDS.issubset(scenarios) and all(item["GREEN_RESULT"] == "PASS" for item in results) and bool(results)
+    existing_results = [
+        item
+        for item in results
+        if item["SCENARIO"] in RED_IDS | GREEN_IDS | RESUME_IDS
+    ]
+    existing_pass = bool(existing_results) and all(
+        item["GREEN_RESULT"] == "PASS" for item in existing_results
+    )
+    workflow_pass = (
+        len(workflow_results) == len(WORKFLOW_IDS)
+        and all(item["GREEN_RESULT"] == "PASS" for item in workflow_results)
+    )
+    all_pass = (
+        full_selection
+        and not errors
+        and RED_IDS.issubset(scenarios)
+        and GREEN_IDS.issubset(scenarios)
+        and RESUME_IDS.issubset(scenarios)
+        and WORKFLOW_IDS.issubset(scenarios)
+        and existing_pass
+        and workflow_pass
+    )
     if not scenarios:
         errors.append("NOT_CONFIGURED")
         all_pass = False
@@ -323,6 +503,16 @@ def run(tests_root_value: str | Path, *, phase: str = "all", selected: Iterable[
         "GREEN_SCENARIOS_RUN": red_run + len(green_results) if full_selection else len(green_results),
         "GREEN_SCENARIOS_PASS": sum(item["GREEN_RESULT"] == "PASS" for item in red_items + green_results),
         "ADDITIONAL_GREEN": len(green_results),
+        "NEW_SCENARIOS_RUN": len(workflow_results),
+        "NEW_SCENARIOS_PASS": sum(
+            item["GREEN_RESULT"] == "PASS" for item in workflow_results
+        ),
+        "GREEN_WORKFLOW_SCOPE_SCENARIOS": (
+            f"{sum(item['GREEN_RESULT'] == 'PASS' for item in workflow_results)} / "
+            f"{len(workflow_results)} PASS"
+        ),
+        "ALL_EXISTING_SCENARIOS_PASS": "YES" if existing_pass else "NO",
+        "ALL_NEW_SCENARIOS_PASS": "YES" if workflow_pass else "NO",
         "RESUME_FROM_CHECKPOINT": "PASS" if resume_result and resume_result["GREEN_RESULT"] == "PASS" else "NOT_CONFIGURED" if not resume_result else "FAIL",
         "ALL_SCENARIOS_PASS": "YES" if all_pass else "NO",
         "results": results,
@@ -334,7 +524,11 @@ def run(tests_root_value: str | Path, *, phase: str = "all", selected: Iterable[
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--tests-root", default=Path(__file__).resolve().parents[1] / "tests")
-    parser.add_argument("--phase", choices=("all", "red", "green", "resume"), default="all")
+    parser.add_argument(
+        "--phase",
+        choices=("all", "red", "green", "resume", "workflow"),
+        default="all",
+    )
     parser.add_argument("--scenario", action="append", default=[])
     parser.add_argument("--json", action="store_true")
     return parser

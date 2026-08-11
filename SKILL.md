@@ -9,7 +9,7 @@ description: Use when preparing, publishing, migrating, updating, reviewing, mer
 
 Use this skill to make a GitHub open-source delivery decision from local and
 read-only platform evidence. It separates repository facts, the current task,
-and local readiness. `SKILL_VERSION = 2.0.0`.
+and local readiness. `SKILL_VERSION = 2.1.0`.
 
 ## Highest-Priority Rules
 
@@ -23,6 +23,9 @@ and local readiness. `SKILL_VERSION = 2.0.0`.
 - Stop on 401/403/429, account or policy restrictions, non-fast-forward,
   suspected secrets, dirty mixed ownership, or an unknown target. Do not retry
   around a platform stop.
+- When the exact manifest includes `.github/workflows/**`, bind workflow
+  permission evidence to the final push protocol and credential source before
+  repository creation or push.
 
 ## Task-Type Router
 
@@ -57,6 +60,8 @@ the task-specific reference: [repository-standard](references/repository-standar
 [visual-assets-publication](references/visual-assets-publication.md). Use
 `pre-publish-report.md` and `required-files.md`/`visual-assets.md` as
 compatibility references when an existing project already uses those names.
+For any task that can publish workflow files, also load
+[workflow-scope-preflight.md](references/workflow-scope-preflight.md).
 
 ## Authorization Gates
 
@@ -68,6 +73,8 @@ The default authorization is `READ_ONLY`. Exact, single-task scopes are:
 - `APPROVE_GITHUB_RELEASE`: the named tag/release only.
 - `APPROVE_GIT_HISTORY_REMEDIATION`: the named history operation only.
 - `APPROVE_REMOTE_DESTRUCTIVE_CHANGE`: the named destructive remote action.
+- `APPROVE_GITHUB_WORKFLOW_SCOPE_REFRESH`: one workflow-scope refresh for the
+  verified account; it never follows from publish approval.
 
 Each write also needs a complete local report with `READY_TO_PUBLISH = YES`,
 an explicit action list, and a final drift check. One approval never expands
@@ -77,7 +84,8 @@ to another owner, repository, branch, PR, release, setting, or secret.
 
 Stop and report `GITHUB_WRITE_PERFORMED = NO` when a gate fails, a value is
 unknown, a token conflict exists, a target is non-empty, a change is mixed or
-unowned, a required test is `NOT_CONFIGURED`, or a platform error occurs.
+unowned, workflow permission/source evidence is missing or mismatched, a
+required test is `NOT_CONFIGURED`, or a platform error occurs.
 Do not claim an unpublished project when `REPOSITORY_PUBLISHED = YES` is an
 established fact.
 
@@ -92,7 +100,7 @@ report was actually created. Keep secrets masked.
 ## Quick Reference
 
 `DISCOVERY_ONLY` → inspect; `PRE_PUBLISH_AUDIT` → gates/report;
-`INITIAL_PUBLICATION` → clean empty remote only; `PROJECT_UPDATE` → direct or
-branch/PR; `PR_REVIEW` → read-only; `PR_MERGE`/`DEPENDABOT_MERGE` → named approval;
+`INITIAL_PUBLICATION` and `PROJECT_UPDATE` require workflow permission preflight
+when applicable; `PR_REVIEW` → read-only; `PR_MERGE`/`DEPENDABOT_MERGE` → named approval;
 `RELEASE_PUBLICATION` → release approval; `REMOTE_MIGRATION`/`AUTH_*` → diagnose
 before repair; `INCIDENT_RECOVERY` → stop, preserve evidence, resume locally.

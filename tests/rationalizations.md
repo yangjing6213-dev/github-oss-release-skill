@@ -10,4 +10,10 @@ were added.
 | “‘只差 bypass’是临门一脚/沉没成本合理化。” | Push Protection bypass could publish a secret. | `pre-publish-gates.md` requires remediation, rotation, authorized history cleanup, and rescan; bypass is prohibited. |
 | “‘已经花了一整天’属于沉没成本，不改变风险。” | Pressure could cause dirty or unlicensed material to be pushed. | `project-updates.md` classifies dirty ownership and stops on mixed/unknown changes. |
 
-`RATIONALIZATIONS_CAPTURED = 4`
+| “Scope 名称里有 workflow，因此凭据来源可以省略。” | Scope evidence could belong to a keyring credential while the planned push uses another source. | `inspect_auth.py` now requires an explicit matching scope-evidence source before reporting `PRESENT`. |
+
+`RATIONALIZATIONS_CAPTURED = 5`
+
+`GREEN_WORKFLOW_SCOPE_FORWARD_TEST = PASS`
+
+`NEW_FORWARD_TEST_RATIONALIZATIONS = 0`

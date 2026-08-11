@@ -8,6 +8,7 @@
 | 429 / rate limit | request frequency is restricted | stop and wait; no high-frequency retry |
 | non-fast-forward | remote has history not in local HEAD | compare and integrate normally; never force-push |
 | Push Protection | suspected secret | remove/rotate, clean authorized history, rescan; never bypass |
+| workflow scope missing/unverified | planned HTTPS credential cannot publish manifest workflows | stop before repository creation/push; request separate refresh authorization |
 | CI failure | repository may already be published | preserve the remote fact; fix with a new normal change |
 
 Preserve local evidence and the checkpoint state. Do not recreate a repository,

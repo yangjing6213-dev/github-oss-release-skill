@@ -54,6 +54,20 @@ def resolve_result(task_type: str, fields: Mapping[str, str]) -> Result:
         value(fields, "CODEQL_STATUS"),
         value(fields, "DEPENDENCY_AUDIT_STATUS"),
     }
+    if (
+        is_yes(fields, "WORKFLOW_SCOPE_PREFLIGHT_REQUIRED")
+        and value(fields, "WORKFLOW_SCOPE_STATUS") in {"MISSING", "NOT_VERIFIED"}
+    ):
+        return Result(
+            "GitHub Actions 工作流权限尚未准备完成",
+            (
+                "项目包含 GitHub Actions 工作流文件，当前 HTTPS 凭据缺少或尚未确认 workflow 权限；"
+                + ("远程仓库保持不变。" if published else "尚未创建远程仓库。")
+            ),
+            "没有变化",
+            True,
+            "授权为当前正确 GitHub 账号补充 workflow scope。",
+        )
 
     if is_yes(fields, "DEPENDABOT_MERGE_SEQUENCE_COMPLETED"):
         if is_yes(fields, "ALL_POST_MERGE_CHECKS_PASS"):
@@ -225,6 +239,7 @@ SCENARIOS = [
     ("VISUAL_ASSET_PUBLICATION", {"LOGO_GENERATED": "YES", "COVER_GENERATED": "YES", "HUMAN_VISUAL_REVIEW": "REQUIRED", "GITHUB_WRITE_PERFORMED": "NO"}, "视觉资产已生成，等待人工确认"),
     ("DEPENDABOT_REVIEW", {"REPOSITORY_PUBLISHED": "YES", "CURRENT_TASK_BLOCKED": "YES"}, "当前任务已安全暂停"),
     ("PRE_PUBLISH_AUDIT", {"GITHUB_WRITE_PERFORMED": "NO", "LOCAL_SECURITY_AUDIT": "PASS"}, "当前任务已完成，GitHub 仓库没有变化"),
+    ("INITIAL_PUBLICATION", {"WORKFLOW_SCOPE_PREFLIGHT_REQUIRED": "YES", "WORKFLOW_SCOPE_STATUS": "MISSING", "REPOSITORY_PUBLISHED": "NO", "GITHUB_WRITE_PERFORMED": "NO"}, "GitHub Actions 工作流权限尚未准备完成"),
 ]
 
 
@@ -241,7 +256,7 @@ def validate_policy_files() -> list[str]:
         "不得削弱任何安全闸门",
     ]
     required_policy_text = [
-        "CHINESE_RESULT_POLICY_VERSION = 2",
+        "CHINESE_RESULT_POLICY_VERSION = 2.1",
         "# 用户结果摘要",
         "## 主要检查结果",
         "## 需要处理的问题",
@@ -256,6 +271,8 @@ def validate_policy_files() -> list[str]:
         "一致性检查",
         "READY_TO_PUBLISH=NO",
         "REPOSITORY_PUBLISHED=YES",
+        "GitHub Actions 工作流权限尚未准备完成",
+        "APPROVE_GITHUB_WORKFLOW_SCOPE_REFRESH",
     ]
     for marker in required_skill_text:
         if marker not in skill:

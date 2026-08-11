@@ -49,6 +49,85 @@ class ScriptSmokeTests(unittest.TestCase):
             duplicate = module.build(root, ["README.md", "*.md"])
             self.assertTrue(duplicate["duplicates"] or not duplicate["valid"])
 
+    def test_manifest_reports_only_root_workflow_files(self) -> None:
+        module = load("build_release_manifest")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            paths = [
+                "README.md",
+                ".github/workflows/ci.yml",
+                ".github/workflows/release/sub-workflow.yml",
+                "docs/.github/workflows/example.md",
+                "templates/.github/workflows/ci.yml",
+            ]
+            for relative in paths:
+                path = root / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("ok\n", encoding="utf-8")
+            result = module.build(root, paths)
+            self.assertTrue(result["workflow_files_present"])
+            self.assertEqual(result["workflow_file_count"], 2)
+            self.assertEqual(
+                result["workflow_file_paths"],
+                [
+                    ".github/workflows/ci.yml",
+                    ".github/workflows/release/sub-workflow.yml",
+                ],
+            )
+
+    def test_auth_stops_before_repository_creation_without_workflow_scope(self) -> None:
+        module = load("inspect_auth")
+        with tempfile.TemporaryDirectory() as directory:
+            manifest = Path(directory) / "manifest.json"
+            manifest.write_text(
+                json.dumps({"files": ["README.md", ".github/workflows/ci.yml"]}),
+                encoding="utf-8",
+            )
+            args = module._parser().parse_args(
+                [
+                    "--expected-owner", "new-owner",
+                    "--cli-account", "new-owner",
+                    "--api-account", "new-owner",
+                    "--planned-push-protocol", "HTTPS",
+                    "--push-credential-source", "GH_CLI_KEYRING",
+                    "--scope-credential-source", "GH_CLI_KEYRING",
+                    "--push-credential-type", "OAUTH",
+                    "--oauth-scope", "repo",
+                    "--manifest", str(manifest),
+                    "--require-workflow-scope-when-applicable",
+                ]
+            )
+            result = module.inspect(args)
+            self.assertEqual(result["workflow_scope_status"], "MISSING")
+            self.assertFalse(result["repository_creation_allowed"])
+            self.assertFalse(result["push_allowed"])
+            self.assertFalse(result["github_write_performed"])
+
+    def test_auth_rejects_scope_evidence_without_matching_source(self) -> None:
+        module = load("inspect_auth")
+        with tempfile.TemporaryDirectory() as directory:
+            manifest = Path(directory) / "manifest.json"
+            manifest.write_text(
+                json.dumps({"files": [".github/workflows/ci.yml"]}),
+                encoding="utf-8",
+            )
+            args = module._parser().parse_args(
+                [
+                    "--expected-owner", "new-owner",
+                    "--cli-account", "new-owner",
+                    "--api-account", "new-owner",
+                    "--planned-push-protocol", "HTTPS",
+                    "--push-credential-source", "GH_CLI_KEYRING",
+                    "--push-credential-type", "OAUTH",
+                    "--oauth-scope", "workflow",
+                    "--manifest", str(manifest),
+                ]
+            )
+            result = module.inspect(args)
+            self.assertIsNone(result["credential_source_match"])
+            self.assertEqual(result["workflow_scope_status"], "NOT_VERIFIED")
+            self.assertFalse(result["repository_creation_allowed"])
+
     def test_utf8_and_markdown_fail_closed(self) -> None:
         utf8 = load("validate_utf8")
         links = load("check_markdown_links")
@@ -89,9 +168,13 @@ class ScriptSmokeTests(unittest.TestCase):
     def test_skill_and_scenarios_validate(self) -> None:
         skill = load("validate_skill")
         scenario = load("run_scenario_tests")
-        self.assertTrue(skill.validate(ROOT)["valid"])
+        skill_result = skill.validate(ROOT)
+        self.assertTrue(skill_result["valid"])
+        self.assertTrue(skill_result["checks"]["workflow_scope_preflight"])
         result = scenario.run(ROOT / "tests")
         self.assertEqual(result["ALL_SCENARIOS_PASS"], "YES")
+        self.assertEqual(result["NEW_SCENARIOS_RUN"], 10)
+        self.assertEqual(result["NEW_SCENARIOS_PASS"], 10)
         self.assertEqual(result["GITHUB_WRITE_PERFORMED"], "NO")
 
 

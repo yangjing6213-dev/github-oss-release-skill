@@ -1,5 +1,5 @@
 {
-  "schema_version": "2.0",
+  "schema_version": "2.1",
   "scenarios": [
     {"SCENARIO":"RED-01","ENVIRONMENT_TOKEN_CONFLICT":true,"EXPECTED_OWNER":"new-owner","REMOTE_OWNER":"old-owner"},
     {"SCENARIO":"RED-02","WORKTREE_DIRTY":true,"HISTORY_CONTAINS_UNVERIFIED_COVER":true},

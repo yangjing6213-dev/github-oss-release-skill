@@ -5,7 +5,7 @@
 `github-oss-release` is a community open-source Codex Skill for auditing,
 initial publication, project updates, migration, PR and Dependabot review,
 merges, and GitHub Releases using local evidence and read-only platform
-evidence. The current Skill version is `2.0.0`.
+evidence. The current Skill version is `2.1.0`.
 
 It is not an official GitHub or OpenAI product and does not represent either
 company. It cannot guarantee that an account will never be restricted, and it
@@ -16,6 +16,7 @@ does not automatically create Stars, Forks, Follows, Issues, PRs, or Comments.
 - Separates local readiness, established remote facts, and the current task result.
 - Fails closed around dirty worktrees, unsafe history, secrets, licensing, CI, and authentication conflicts.
 - Requires an exact file manifest, local-only report, and action-specific authorization.
+- Binds HTTPS push credentials to verified `workflow` scope evidence when workflow files change.
 - Stops on 401, 403, 429, Push Protection, non-fast-forward, and unknown targets instead of bypassing controls.
 
 ## Supported task types
@@ -59,6 +60,120 @@ Action = audit only; no GitHub write
 If the type, target, or action cannot be verified, the Skill should ask one
 focused question and remain read-only.
 
+## Common Prompt Recipes
+
+Open the real project root, start a new Codex task, and invoke
+`$github-oss-release`. Replace `<github-owner>`, `<repository-name>`,
+`<owner/repository>`, and `<public-or-private>` with the target values. Run the
+read-only audit first, then authorize an ordinary Push only after it passes.
+Never use Force Push. Local PRE/POST/UPDATE reports stay ignored and do not enter
+the public repository.
+
+### 1. Pre-push audit
+
+```text
+$github-oss-release
+
+TASK_TYPE = PRE_PUBLISH_AUDIT
+
+Run a complete GitHub pre-publication audit for the current project.
+
+Target GitHub account:
+<github-owner>
+
+Target repository name:
+<repository-name>
+
+This step is read-only. Create a local-only PRE-PUBLISH-REPORT. Do not modify
+project files, Commit, Push, or perform any GitHub write. Return the result in
+Simplified Chinese first.
+```
+
+### 2. First push for a new project
+
+Step one prepares the project and local report:
+
+```text
+$github-oss-release
+
+TASK_TYPE = INITIAL_PUBLICATION
+
+Prepare the current project for its first GitHub open-source publication.
+
+Target GitHub account:
+<github-owner>
+
+Target repository name:
+<repository-name>
+
+Target repository visibility:
+<public-or-private>
+
+Do not Commit, create the remote repository, or Push in this step.
+```
+
+Step two authorizes publication only when `READY_TO_PUBLISH = YES` and the
+audited state has not drifted:
+
+```text
+$github-oss-release
+
+APPROVE_GITHUB_PUBLISH
+
+Continue the current INITIAL_PUBLICATION task.
+
+Authorized GitHub account:
+<github-owner>
+
+Authorized target repository:
+<owner/repository>
+
+Authorized repository visibility:
+<public-or-private>
+
+Use only the exact file manifest, an ordinary Commit, and an ordinary Push.
+Do not Force Push, overwrite a non-empty repository, commit local reports, or
+create a Tag/Release. Stop safely on any high-risk condition.
+```
+
+### 3. Update push for a published project
+
+Step one prepares only the intended update:
+
+```text
+$github-oss-release
+
+TASK_TYPE = PROJECT_UPDATE
+
+Prepare a safe update for the current published GitHub project.
+
+Target GitHub account:
+<github-owner>
+
+Separate current-task changes from unrelated existing changes; check remote,
+Workflow, Secret, License, and quality gates; and create a local-only
+PRE-PUBLISH-REPORT. Do not Commit, Push, or create a Pull Request in this step.
+```
+
+Step two commits only files approved by the report:
+
+```text
+$github-oss-release
+
+APPROVE_GITHUB_PUBLISH
+
+Continue the current PROJECT_UPDATE task.
+
+Authorized GitHub account:
+<github-owner>
+
+Commit only the current changes approved by PRE-PUBLISH-REPORT. Use exact
+Staging and an ordinary Push. If main requires a PR, create an update branch
+and Pull Request, but do not auto-merge or bypass protection.
+```
+
+- [Complete Prompt Recipes](docs/usage-prompts.en.md)
+
 ## Initial publication
 
 1. Discover structure, version, configured commands, Git state, and existing remotes.
@@ -81,6 +196,8 @@ Compare local and remote HEAD, branch, worktree ownership, and change ownership
 first. A clean, low-risk, explicit update may use an ordinary direct push;
 mixed, larger, or review-sensitive work should use a branch and PR. Re-run the
 affected gates, generate an exact manifest, and obtain target-specific approval.
+If the update changes `.github/workflows/**`, complete a pre-push `workflow`
+scope check bound to the actual HTTPS credential source.
 
 ## PRs and Dependabot
 
@@ -111,6 +228,7 @@ once in a temporary clean subprocess. Stop after one diagnostic check on 401,
 - `APPROVE_GITHUB_RELEASE`: one named tag/release only.
 - `APPROVE_GIT_HISTORY_REMEDIATION`: one named history operation only.
 - `APPROVE_REMOTE_DESTRUCTIVE_CHANGE`: one named destructive remote operation only.
+- `APPROVE_GITHUB_WORKFLOW_SCOPE_REFRESH`: one `workflow` scope refresh for the verified account; publish approval never includes it implicitly.
 
 Authorization never expands across owners, repositories, branches, PRs,
 Releases, settings, or secrets.

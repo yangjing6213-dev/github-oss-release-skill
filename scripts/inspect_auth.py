@@ -13,13 +13,36 @@ import os
 import re
 import subprocess
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
 
 EXIT_OK = 0
 EXIT_FINDINGS = 1
-EXIT_USAGE = 2
+EXIT_WORKFLOW_SCOPE_MISSING = 2
+EXIT_CREDENTIAL_SOURCE_MISMATCH = 3
+EXIT_ACCOUNT_MISMATCH = 4
+EXIT_PERMISSION_NOT_VERIFIED = 5
+EXIT_USAGE = 64
+PUSH_PROTOCOLS = {"HTTPS", "SSH", "OTHER", "NOT_CONFIGURED", "NOT_VERIFIED"}
+PUSH_CREDENTIAL_SOURCES = {
+    "GH_TOKEN_ENVIRONMENT",
+    "GITHUB_TOKEN_ENVIRONMENT",
+    "GH_CLI_KEYRING",
+    "GIT_CREDENTIAL_MANAGER",
+    "SSH_KEY",
+    "OTHER",
+    "NOT_VERIFIED",
+}
+PUSH_CREDENTIAL_TYPES = {
+    "OAUTH",
+    "CLASSIC_PAT",
+    "FINE_GRAINED_PAT",
+    "GITHUB_APP_TOKEN",
+    "SSH",
+    "OTHER",
+    "NOT_VERIFIED",
+}
 
 
 def _account(value: str | None) -> str | None:
@@ -110,6 +133,80 @@ def _env_first(*names: str) -> str | None:
     return None
 
 
+def _choice(value: str | None, allowed: set[str], default: str) -> str:
+    normalized = str(value or "").strip().upper()
+    return normalized if normalized in allowed else default
+
+
+def _planned_protocol(remote: str | None, explicit: str | None) -> str:
+    if explicit:
+        return _choice(explicit, PUSH_PROTOCOLS, "NOT_VERIFIED")
+    value = str(remote or "").strip().lower()
+    if not value:
+        return "NOT_CONFIGURED"
+    if value.startswith(("https://", "http://")):
+        return "HTTPS"
+    if value.startswith("ssh://") or re.match(r"^[^@\s]+@[^:\s]+:", value):
+        return "SSH"
+    return "OTHER"
+
+
+def _manifest_paths(path_value: str | None) -> list[str]:
+    if not path_value:
+        return []
+    path = Path(path_value).expanduser().resolve()
+    text = path.read_text(encoding="utf-8")
+    try:
+        value: Any = json.loads(text)
+    except json.JSONDecodeError:
+        value = [
+            line.strip()
+            for line in text.splitlines()
+            if line.strip() and not line.lstrip().startswith("#")
+        ]
+    if isinstance(value, dict):
+        value = value.get("workflow_file_paths", value.get("files", value.get("paths", [])))
+    if not isinstance(value, list):
+        raise ValueError("manifest_paths_missing")
+    paths: list[str] = []
+    for item in value:
+        candidate = item.get("path") if isinstance(item, dict) else item
+        if isinstance(candidate, str):
+            paths.append(candidate)
+    return paths
+
+
+def _workflow_paths(paths: list[str]) -> list[str]:
+    result: set[str] = set()
+    for value in paths:
+        normalized = value.replace("\\", "/").strip()
+        if normalized.startswith("./"):
+            normalized = normalized[2:]
+        path = PurePosixPath(normalized)
+        windows = PureWindowsPath(normalized)
+        if (
+            normalized
+            and not path.is_absolute()
+            and not windows.is_absolute()
+            and not windows.drive
+            and ".." not in path.parts
+            and len(path.parts) > 2
+            and path.parts[:2] == (".github", "workflows")
+        ):
+            result.add(path.as_posix())
+    return sorted(result)
+
+
+def _safe_scope_names(values: list[str]) -> list[str]:
+    scopes: set[str] = set()
+    for value in values:
+        for candidate in value.split(","):
+            name = candidate.strip()
+            if re.fullmatch(r"[A-Za-z0-9:_-]+", name):
+                scopes.add(name)
+    return sorted(scopes, key=str.casefold)
+
+
 def inspect(args: argparse.Namespace) -> dict[str, Any]:
     remote_value = args.remote or _git_remote(args.remote_name)
     remote_owner, remote_repository = _remote_parts(remote_value)
@@ -127,6 +224,85 @@ def inspect(args: argparse.Namespace) -> dict[str, Any]:
     github_scopes = _scope_presence("GITHUB_TOKEN")
     gh_token_set = any(value is True for value in gh_scopes.values())
     github_token_set = any(value is True for value in github_scopes.values())
+    planned_push_protocol = _planned_protocol(remote_value, args.planned_push_protocol)
+    push_credential_source = _choice(
+        args.push_credential_source,
+        PUSH_CREDENTIAL_SOURCES,
+        "GH_TOKEN_ENVIRONMENT"
+        if gh_scopes["process"]
+        else "GITHUB_TOKEN_ENVIRONMENT"
+        if github_scopes["process"]
+        else "SSH_KEY"
+        if planned_push_protocol == "SSH"
+        else "GH_CLI_KEYRING"
+        if cli_account
+        else "NOT_VERIFIED",
+    )
+    push_credential_type = _choice(
+        args.push_credential_type,
+        PUSH_CREDENTIAL_TYPES,
+        "SSH" if push_credential_source == "SSH_KEY" else "NOT_VERIFIED",
+    )
+    scope_credential_source = _choice(
+        args.scope_credential_source,
+        PUSH_CREDENTIAL_SOURCES,
+        "NOT_VERIFIED",
+    )
+    credential_source_match: bool | None = (
+        None
+        if scope_credential_source == "NOT_VERIFIED"
+        else scope_credential_source == push_credential_source
+    )
+    oauth_scopes = _safe_scope_names(args.oauth_scope)
+    oauth_scopes_inspectable = bool(args.oauth_scope)
+    workflow_file_paths = _workflow_paths(_manifest_paths(args.manifest))
+    workflow_files_present = bool(workflow_file_paths)
+    workflow_scope_preflight_required = bool(
+        workflow_files_present
+        and planned_push_protocol == "HTTPS"
+        and push_credential_type in {"OAUTH", "CLASSIC_PAT"}
+    )
+
+    if not workflow_files_present:
+        workflow_scope_status = "NOT_APPLICABLE_NO_WORKFLOW_FILES"
+    elif planned_push_protocol == "SSH":
+        workflow_scope_status = "NOT_APPLICABLE_SSH_PUSH"
+    elif planned_push_protocol != "HTTPS":
+        workflow_scope_status = (
+            "NOT_APPLICABLE_OR_REQUIRES_HOST_SPECIFIC_POLICY"
+            if planned_push_protocol == "OTHER"
+            else "NOT_VERIFIED"
+        )
+    elif push_credential_type in {"FINE_GRAINED_PAT", "GITHUB_APP_TOKEN"}:
+        workflow_scope_status = "CREDENTIAL_TYPE_SPECIFIC_PERMISSION_REVIEW"
+    elif push_credential_type not in {"OAUTH", "CLASSIC_PAT"}:
+        workflow_scope_status = "NOT_VERIFIED"
+    elif credential_source_match is not True:
+        workflow_scope_status = "NOT_VERIFIED"
+    elif oauth_scopes_inspectable:
+        workflow_scope_status = (
+            "PRESENT"
+            if any(scope.casefold() == "workflow" for scope in oauth_scopes)
+            else "MISSING"
+        )
+    else:
+        workflow_scope_status = "NOT_VERIFIED"
+
+    workflow_scope_preflight_result = (
+        "PASS"
+        if workflow_scope_status
+        in {
+            "PRESENT",
+            "NOT_APPLICABLE_NO_WORKFLOW_FILES",
+            "NOT_APPLICABLE_SSH_PUSH",
+        }
+        else "FAIL"
+    )
+    workflow_scope_refresh_required = workflow_scope_status == "MISSING"
+    workflow_scope_refresh_authorized = (
+        args.workflow_scope_refresh_authorization
+        == "APPROVE_GITHUB_WORKFLOW_SCOPE_REFRESH"
+    )
 
     known_accounts = [
         account
@@ -165,6 +341,12 @@ def inspect(args: argparse.Namespace) -> dict[str, Any]:
         reasons.append("REMOTE_OWNER_MISMATCH")
     if not expected_owner and not known_accounts:
         reasons.append("EXPECTED_OWNER_OR_ACCOUNT_UNKNOWN")
+    if credential_source_match is False:
+        reasons.append("PUSH_CREDENTIAL_SOURCE_MISMATCH")
+    if workflow_scope_preflight_required and workflow_scope_status != "PRESENT":
+        reasons.append("WORKFLOW_SCOPE_PREFLIGHT_FAILED")
+    elif workflow_files_present and workflow_scope_preflight_result != "PASS":
+        reasons.append("WORKFLOW_PERMISSION_NOT_VERIFIED")
 
     # This is an inspection, not an authorization grant.  A caller may opt in
     # to an explicit local authorization marker for a truthful readiness value.
@@ -172,7 +354,11 @@ def inspect(args: argparse.Namespace) -> dict[str, Any]:
     # Owner/remote metadata alone is not authentication evidence.  A verified
     # CLI/API/SSH identity must be present before reporting read readiness.
     read_ready = bool(known_accounts and account_match is True and not conflict)
-    write_ready = bool(authorized and read_ready and not reasons)
+    repository_creation_allowed = bool(
+        read_ready and workflow_scope_preflight_result == "PASS"
+    )
+    push_allowed = repository_creation_allowed
+    write_ready = bool(authorized and push_allowed and not reasons)
     if not write_ready and authorized and not reasons:
         reasons.append("AUTHENTICATION_NOT_VERIFIED")
     stop_reason = "; ".join(dict.fromkeys(reasons)) or None
@@ -189,6 +375,23 @@ def inspect(args: argparse.Namespace) -> dict[str, Any]:
         "remote_repository": remote_repository,
         "account_match": account_match,
         "environment_token_conflict": conflict,
+        "planned_push_protocol": planned_push_protocol,
+        "push_credential_source": push_credential_source,
+        "push_credential_type": push_credential_type,
+        "scope_credential_source": scope_credential_source,
+        "credential_source_match": credential_source_match,
+        "oauth_scopes": oauth_scopes,
+        "oauth_scopes_inspectable": oauth_scopes_inspectable,
+        "workflow_files_present": workflow_files_present,
+        "workflow_file_count": len(workflow_file_paths),
+        "workflow_file_paths": workflow_file_paths,
+        "workflow_scope_status": workflow_scope_status,
+        "workflow_scope_preflight_required": workflow_scope_preflight_required,
+        "workflow_scope_preflight_result": workflow_scope_preflight_result,
+        "workflow_scope_refresh_required": workflow_scope_refresh_required,
+        "workflow_scope_refresh_authorized": workflow_scope_refresh_authorized,
+        "repository_creation_allowed": repository_creation_allowed,
+        "push_allowed": push_allowed,
         "read_ready": read_ready,
         "write_ready": write_ready,
         "stop_reason": stop_reason,
@@ -206,6 +409,20 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--api-account")
     parser.add_argument("--ssh-account")
     parser.add_argument("--token-account")
+    parser.add_argument("--planned-push-protocol", choices=sorted(PUSH_PROTOCOLS))
+    parser.add_argument("--push-credential-source", choices=sorted(PUSH_CREDENTIAL_SOURCES))
+    parser.add_argument("--scope-credential-source", choices=sorted(PUSH_CREDENTIAL_SOURCES))
+    parser.add_argument("--push-credential-type", choices=sorted(PUSH_CREDENTIAL_TYPES))
+    parser.add_argument("--oauth-scope", action="append", default=[])
+    parser.add_argument("--manifest")
+    parser.add_argument(
+        "--require-workflow-scope-when-applicable",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--workflow-scope-refresh-authorization",
+        help=argparse.SUPPRESS,
+    )
     parser.add_argument("--authorization", help=argparse.SUPPRESS)
     parser.add_argument("--json", action="store_true", help="emit JSON")
     return parser
@@ -241,11 +458,33 @@ def main(argv: list[str] | None = None) -> int:
             "remote_owner",
             "account_match",
             "environment_token_conflict",
+            "planned_push_protocol",
+            "push_credential_source",
+            "push_credential_type",
+            "credential_source_match",
+            "workflow_files_present",
+            "workflow_scope_status",
+            "workflow_scope_preflight_required",
+            "workflow_scope_preflight_result",
+            "workflow_scope_refresh_required",
+            "repository_creation_allowed",
+            "push_allowed",
             "read_ready",
             "write_ready",
             "stop_reason",
         ):
             print(f"{key} = {result[key]}")
+    if result["credential_source_match"] is False:
+        return EXIT_CREDENTIAL_SOURCE_MISMATCH
+    if result["account_match"] is False:
+        return EXIT_ACCOUNT_MISMATCH
+    if result["workflow_scope_status"] == "MISSING":
+        return EXIT_WORKFLOW_SCOPE_MISSING
+    if (
+        result["workflow_files_present"]
+        and result["workflow_scope_preflight_result"] != "PASS"
+    ):
+        return EXIT_PERMISSION_NOT_VERIFIED
     return EXIT_OK if not result["stop_reason"] else EXIT_FINDINGS
 
 

@@ -21,6 +21,9 @@ state. `Remote Owner` is evidence, not permission.
    ask one focused question and remain read-only.
 4. A task-type label never grants a write. Apply the matching authorization
    gate and local report contract separately.
+5. For any write-capable route whose exact manifest or diff contains
+   .github/workflows/**, load workflow-scope-preflight.md and complete its
+   protocol/credential permission gate before repository creation or push.
 
 | Signal | Route |
 |---|---|

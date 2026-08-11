@@ -24,3 +24,12 @@ complete check. Reuse `HISTORY_SCAN`, `LICENSE_AUDIT`, and `DEPENDENCY_AUDIT`
 only when their inputs and evidence hashes are unchanged. Any source, lockfile,
 build, dependency, secret, or history change invalidates its related evidence.
 Never treat a stale pass as current merely because the change is small.
+
+## Workflow-file updates
+
+When the exact diff or manifest adds, modifies, or deletes
+.github/workflows/**, load workflow-scope-preflight.md. For a planned HTTPS
+OAuth/classic-PAT push, verify the actual push credential has workflow scope
+before pushing a branch or main. A missing/unverified scope or credential
+source mismatch sets WORKFLOW_SCOPE_CHECK_BEFORE_PUSH = FAIL and
+PUSH_ALLOWED = NO; preserve the existing remote repository unchanged.

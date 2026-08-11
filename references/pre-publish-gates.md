@@ -21,6 +21,13 @@ coverage; a fallback is not an equivalent guarantee. Never print a finding.
 Push Protection is fail-closed: remove/rotate the secret, clean affected
 history with separate authorization when needed, and rescan. Never bypass.
 
+## Workflow permission gate
+
+After building the exact manifest, run workflow-scope-preflight.md when it
+contains .github/workflows/**. Bind the result to the final push protocol and
+credential source. A missing, mismatched, or unverified applicable permission
+sets READY_TO_PUBLISH = NO before repository creation or push.
+
 ## Quality gates
 
 Evaluate `TESTS`, `COVERAGE`, `LINT`, `TYPECHECK`, `BUILD`, `FORMAT`,

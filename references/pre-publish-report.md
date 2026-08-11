@@ -16,7 +16,10 @@ Create this local-only file before any GitHub write. Use either `<project-root>/
 - Local report path:
 - Git-ignore evidence (`git check-ignore -v`):
 - Untracked/unstaged/public-manifest exclusion evidence:
-- Skill version: 2.0.0
+- Skill version: 2.1.0
+- Workflow files in exact manifest:
+- Planned push protocol and credential source:
+- Workflow permission preflight result:
 - Visual asset policy: OPTIONAL_BY_PROJECT
 - GITHUB_PUBLISH_APPROVAL_GRANTED: NO
 - READY_TO_PUBLISH: NO

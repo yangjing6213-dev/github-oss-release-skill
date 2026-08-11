@@ -4,7 +4,7 @@
 
 `github-oss-release` 是一个社区开源 Codex Skill，用本地证据和只读 GitHub
 证据辅助审计、首次发布、后续更新、迁移、PR/Dependabot 审查、合并和
-Release 发布。当前 Skill 版本为 `2.0.0`。
+Release 发布。当前 Skill 版本为 `2.1.0`。
 
 它不是 GitHub 或 OpenAI 的官方产品，也不代表 GitHub 或 OpenAI。它不能保证
 账号永不受限，也不会自动执行 Star、Fork、Follow、Issue、PR 或 Comment。
@@ -14,6 +14,7 @@ Release 发布。当前 Skill 版本为 `2.0.0`。
 - 区分本地准备完成、远程仓库事实和当前任务结果。
 - 在处理脏工作区、旧历史、秘密、许可证、CI 和认证冲突时默认拒绝危险写入。
 - 要求精确文件清单、仅本地发布报告和逐项授权，避免误提交隐私数据或报告。
+- 在工作流文件发生变化时，将 HTTPS 推送凭据与 `workflow` scope 证据绑定并提前预检。
 - 在 401、403、429、Push Protection、非快进和目标不明时停止，而不是绕过平台限制。
 
 ## 支持的任务类型
@@ -53,6 +54,113 @@ Action = audit only; no GitHub write
 
 如果任务类型、目标或动作无法验证，Skill 应提出一个聚焦问题并保持只读。
 
+## 常用操作提示词
+
+先打开真实项目根目录，在 Codex 中新建任务并调用 `$github-oss-release`。把
+`<github-owner>`、`<repository-name>`、`<owner/repository>` 和
+`<public-or-private>` 替换为目标信息。建议先做只读发布前检查，检查通过后再授权
+普通 Push；不要使用 Force Push。本地 PRE/POST/UPDATE 报告会保持忽略，不进入公开仓库。
+
+### 1. 推送前检查
+
+```text
+$github-oss-release
+
+TASK_TYPE = PRE_PUBLISH_AUDIT
+
+对当前项目执行完整 GitHub 发布前检查。
+
+目标 GitHub 账号：
+<github-owner>
+
+目标仓库名称：
+<repository-name>
+
+本轮只读。生成仅保存在本地的 PRE-PUBLISH-REPORT，禁止修改项目、Commit、Push
+或任何 GitHub 写入。优先使用简体中文返回结果。
+```
+
+### 2. 新项目首次推送
+
+第一步，准备并生成本地报告：
+
+```text
+$github-oss-release
+
+TASK_TYPE = INITIAL_PUBLICATION
+
+对当前项目执行首次 GitHub 开源发布准备。
+
+目标 GitHub 账号：
+<github-owner>
+
+目标仓库名称：
+<repository-name>
+
+目标仓库可见性：
+<public-or-private>
+
+本轮不 Commit、不创建远程仓库、不 Push。
+```
+
+第二步，仅在 `READY_TO_PUBLISH = YES` 且状态未漂移时授权：
+
+```text
+$github-oss-release
+
+APPROVE_GITHUB_PUBLISH
+
+继续当前 INITIAL_PUBLICATION 任务。
+
+授权 GitHub 账号：
+<github-owner>
+
+授权目标仓库：
+<owner/repository>
+
+授权仓库可见性：
+<public-or-private>
+
+只使用精确文件清单、普通 Commit 和普通 Push；禁止 Force Push、覆盖非空仓库、
+提交本地报告或创建 Tag/Release。出现高风险问题时立即安全停止。
+```
+
+### 3. 已发布项目更新推送
+
+第一步，只准备本次更新：
+
+```text
+$github-oss-release
+
+TASK_TYPE = PROJECT_UPDATE
+
+对当前已经发布的 GitHub 项目执行安全更新准备。
+
+目标 GitHub 账号：
+<github-owner>
+
+区分本次修改和已有无关修改，检查远程、Workflow、Secret、License 与质量闸门，
+生成仅保存在本地的 PRE-PUBLISH-REPORT。本轮不 Commit、不 Push、不创建 Pull Request。
+```
+
+第二步，只提交报告已批准的文件：
+
+```text
+$github-oss-release
+
+APPROVE_GITHUB_PUBLISH
+
+继续当前 PROJECT_UPDATE 任务。
+
+授权 GitHub 账号：
+<github-owner>
+
+只允许提交 PRE-PUBLISH-REPORT 已批准的本次修改。使用精确 Staging 和普通 Push；
+main 要求 PR 时创建更新分支和 Pull Request，但不得自动合并或绕过保护。
+```
+
+- [完整操作提示词](docs/usage-prompts.md)
+
 ## 首次发布流程
 
 1. 发现项目结构、版本、真实命令、Git 状态和既有远程。
@@ -72,7 +180,9 @@ Protection。历史排除或修复需要单独的 `APPROVE_GIT_HISTORY_REMEDIATI
 
 先比较本地/远程 HEAD、分支、工作区所有权和变更归属。干净且低风险的明确更新
 可以选择普通直推；混合、较大或需要审查的更新使用分支和 PR。任何路径都必须
-重新运行受影响闸门、生成精确清单并取得与目标和动作一致的授权。
+重新运行受影响闸门、生成精确清单并取得与目标和动作一致的授权。若本次更新
+修改 `.github/workflows/**`，还必须在 Push 前完成与实际 HTTPS 凭据一致的
+`workflow` scope 预检。
 
 ## PR 与 Dependabot
 
@@ -101,6 +211,7 @@ Skill 只记录 `GH_TOKEN`/`GITHUB_TOKEN` 是否设置、CLI/API/SSH 账号身�
 - `APPROVE_GITHUB_RELEASE`：仅指定 tag/release。
 - `APPROVE_GIT_HISTORY_REMEDIATION`：仅指定历史操作。
 - `APPROVE_REMOTE_DESTRUCTIVE_CHANGE`：仅指定破坏性远程操作。
+- `APPROVE_GITHUB_WORKFLOW_SCOPE_REFRESH`：仅允许为已验证账号刷新一次 `workflow` scope；发布授权不会自动包含它。
 
 授权不能跨 owner、仓库、分支、PR、Release、设置或秘密复用。
 
