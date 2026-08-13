@@ -9,7 +9,7 @@ description: Use when preparing, publishing, migrating, updating, reviewing, mer
 
 Use this skill to make a GitHub open-source delivery decision from local and
 read-only platform evidence. It separates repository facts, the current task,
-and local readiness. `SKILL_VERSION = 2.1.0`.
+and local readiness. `SKILL_VERSION = 2.2.0`.
 
 ## Highest-Priority Rules
 
@@ -35,7 +35,8 @@ Set exactly one `TASK_TYPE` before any write:
 `PROJECT_UPDATE`, `BRANCH_AND_PR_UPDATE`, `PR_REVIEW`, `PR_MERGE`,
 `DEPENDABOT_REVIEW`, `DEPENDABOT_MERGE`, `RELEASE_PUBLICATION`,
 `REMOTE_MIGRATION`, `AUTH_DIAGNOSIS`, `AUTH_REMEDIATION`,
-`VISUAL_ASSET_PUBLICATION`, or `INCIDENT_RECOVERY`.
+`VISUAL_ASSET_PUBLICATION`, `BADGE_AUDIT`, `BADGE_UPDATE`,
+`PORTFOLIO_BADGE_AUDIT`, `PORTFOLIO_BADGE_ROLLOUT`, or `INCIDENT_RECOVERY`.
 
 Read [workflow-router.md](references/workflow-router.md) first. If the type,
 target owner/repository, or requested action cannot be verified, ask one
@@ -62,6 +63,35 @@ the task-specific reference: [repository-standard](references/repository-standar
 compatibility references when an existing project already uses those names.
 For any task that can publish workflow files, also load
 [workflow-scope-preflight.md](references/workflow-scope-preflight.md).
+
+For badge work, load [badge-policy.md](references/badge-policy.md),
+[badge-assessment.md](references/badge-assessment.md),
+[badge-publication.md](references/badge-publication.md), and
+[portfolio-badge-workflow.md](references/portfolio-badge-workflow.md).
+
+## Evidence-first badge policy
+
+`BADGE_POLICY = EVIDENCE_FIRST`. Treat every badge as a public factual claim.
+Use `scripts/assess_badges.py` for read-only assessment and
+`scripts/validate_badges.py` before any README update. Never replace missing
+CI, security, coverage, license, release, version, or download evidence with a
+static claim. Keep `BADGES_READY_NOW` separate from
+`QUALITY_GATES_RECOMMENDED`; missing quality capability does not authorize a
+new Workflow.
+
+Badge task types are scoped as follows:
+
+- `BADGE_AUDIT`: assess one project, no modification.
+- `BADGE_UPDATE`: update one named project and its necessary docs.
+- `PORTFOLIO_BADGE_AUDIT`: read-only assessment of multiple repositories.
+- `PORTFOLIO_BADGE_ROLLOUT`: update only an exact user-approved repository list.
+
+Use only `VERIFIED_READY`, `REQUIRES_QUALITY_SETUP`, `NOT_APPLICABLE`,
+`NOT_RECOMMENDED`, or `BLOCKED_INVALID_EVIDENCE`. Recommend 2–6 evidence-backed
+badges in this order: CI/Tests, License, Release/Tag/version, runtime,
+CodeQL/security, Coverage, Dependency Audit. Deduplicate equivalent badges.
+Popularity badges are opt-in. Static `passing`, `secure`, `maintained`, and
+numeric coverage claims are not valid substitutes for evidence.
 
 ## Authorization Gates
 
@@ -103,4 +133,6 @@ report was actually created. Keep secrets masked.
 `INITIAL_PUBLICATION` and `PROJECT_UPDATE` require workflow permission preflight
 when applicable; `PR_REVIEW` → read-only; `PR_MERGE`/`DEPENDABOT_MERGE` → named approval;
 `RELEASE_PUBLICATION` → release approval; `REMOTE_MIGRATION`/`AUTH_*` → diagnose
-before repair; `INCIDENT_RECOVERY` → stop, preserve evidence, resume locally.
+before repair; badge audit → read-only assessment; badge update → exact named
+scope; portfolio rollout → exact approved list; `INCIDENT_RECOVERY` → stop,
+preserve evidence, resume locally.

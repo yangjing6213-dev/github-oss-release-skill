@@ -165,6 +165,16 @@ class ScriptSmokeTests(unittest.TestCase):
             self.assertTrue(result["artifact_count"] == 1)
             self.assertTrue(result["finding_count"] > 0)
 
+    def test_artifact_scan_allows_report_templates(self) -> None:
+        module = load("inspect_build_artifacts")
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            archive = root / "dist.zip"
+            with zipfile.ZipFile(archive, "w") as handle:
+                handle.writestr("pkg/templates/PRE-PUBLISH-REPORT.md", "template\n")
+            result = module.inspect(root)
+            self.assertTrue(result["valid"])
+
     def test_skill_and_scenarios_validate(self) -> None:
         skill = load("validate_skill")
         scenario = load("run_scenario_tests")

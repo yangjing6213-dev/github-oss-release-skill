@@ -1,8 +1,8 @@
-# 全局中文结果政策 V2.1
+# 全局中文结果政策 V2.2
 
 ```text
-CHINESE_RESULT_POLICY_VERSION = 2.1
-SKILL_VERSION = 2.1.0
+CHINESE_RESULT_POLICY_VERSION = 2.2
+SKILL_VERSION = 2.2.0
 ```
 
 本文件适用于首次发布、后续更新、Pull Request、Dependabot、CI/CodeQL、认证、视觉资产、Release、本地标准化、安全审计和只读检查。它只规定最终结果的表达与状态计算，不授权任何 GitHub 写入，也不改变其他安全规则。
@@ -50,8 +50,18 @@ REMOTE_MIGRATION
 AUTH_DIAGNOSIS
 AUTH_REMEDIATION
 VISUAL_ASSET_PUBLICATION
+BADGE_AUDIT
+BADGE_UPDATE
+PORTFOLIO_BADGE_AUDIT
+PORTFOLIO_BADGE_ROLLOUT
 INCIDENT_RECOVERY
 ```
+
+徽章任务必须区分“当前已有徽章”“可以立即添加”“需要先配置”“不适用”、
+“不推荐”和“失效或错误徽章”，并给出最终推荐顺序及是否需要授权新增质量能力。
+允许的徽章证据状态为 `VERIFIED_READY`、`REQUIRES_QUALITY_SETUP`、
+`NOT_APPLICABLE`、`NOT_RECOMMENDED` 和 `BLOCKED_INVALID_EVIDENCE`。徽章评估
+默认只读，不因缺少 CI、CodeQL 或 Coverage 自动创建 Workflow。
 
 ### 1. 分开保存两个状态
 
@@ -181,6 +191,10 @@ GitHub 是否发生变化：
 | PR 已合并且检查仍运行 | 项目更新已合并，GitHub 正在自动检查 | 合并事实不被 pending 覆盖 |
 | PR 已合并但检查失败 | 项目更新已合并，但自动检查未通过 | 以新提交修复，不撤销合并事实 |
 | Dependabot 只读审查完成 | 依赖更新审查已完成 | 没有合并或修改 PR |
+| 徽章评估证据已完成 | 徽章评估已完成 | 已分开输出当前徽章、可立即添加、需配置、不适用、不推荐和失效项 |
+| 徽章更新已完成本地准备 | 徽章更新已准备完成 | 等待精确范围和更新授权 |
+| 徽章远程更新事实成立 | 项目徽章已成功更新 | 仅在远程写入和验证事实成立时使用 |
+| 徽章缺少质量能力 | 项目可以获得更多徽章，但需要先建设质量能力 | 不自动创建质量 Workflow |
 | Dependabot 合并及合并后检查通过 | 依赖更新已安全合并 | 指定更新已经合并 |
 | 认证就绪且环境 Token 不冲突 | GitHub 登录认证已恢复正常 | GitHub 仓库没有变化 |
 | 认证未就绪、账号不匹配或环境 Token 冲突 | GitHub 认证仍需处理 | 解释 401/403 等中文含义 |

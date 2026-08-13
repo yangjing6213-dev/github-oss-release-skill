@@ -135,6 +135,24 @@ Prohibited:
 Stop safely when any high-risk condition appears.
 ```
 
+### 4. Evidence-first badge assessment
+
+```text
+$github-oss-release
+
+TASK_TYPE = BADGE_AUDIT
+
+Assess the current project badges read-only. Do not edit README files, create
+Workflows, or perform a GitHub write. Return current badges, ready-now badges,
+quality setup required, not applicable, not recommended, broken badges, final
+recommendation order, and whether authorization is needed for new quality capability.
+```
+
+Use `BADGE_UPDATE` only for one named project after assessment and explicit
+approval. Portfolio work must use `PORTFOLIO_BADGE_AUDIT` or
+`PORTFOLIO_BADGE_ROLLOUT` with an exact repository list; stop the rollout after
+the first repository write failure.
+
 ## 3. Update push for a published project
 
 ### Step one: prepare the update

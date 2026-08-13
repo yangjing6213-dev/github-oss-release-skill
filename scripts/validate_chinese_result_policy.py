@@ -25,6 +25,10 @@ TASK_TYPES = {
     "AUTH_DIAGNOSIS",
     "AUTH_REMEDIATION",
     "VISUAL_ASSET_PUBLICATION",
+    "BADGE_AUDIT",
+    "BADGE_UPDATE",
+    "PORTFOLIO_BADGE_AUDIT",
+    "PORTFOLIO_BADGE_ROLLOUT",
     "INCIDENT_RECOVERY",
 }
 
@@ -204,6 +208,35 @@ def resolve_result(task_type: str, fields: Mapping[str, str]) -> Result:
             "确认目标账号和仓库后，再明确授权正式发布。",
         )
 
+    if task_type in {"BADGE_AUDIT", "PORTFOLIO_BADGE_AUDIT"} and is_yes(fields, "BADGE_ASSESSMENT_COMPLETED"):
+        return Result(
+            "徽章评估已完成",
+            "已分开列出当前已有徽章、可以立即添加、需要先配置、不适用、不推荐和失效徽章；本轮没有修改项目。",
+            "没有变化",
+            is_yes(fields, "QUALITY_CAPABILITY_AUTHORIZATION_REQUIRED"),
+            "只在需要时明确授权新增真实质量能力，再重新评估。"
+            if is_yes(fields, "QUALITY_CAPABILITY_AUTHORIZATION_REQUIRED")
+            else "当前徽章评估已经完成，无需继续操作。",
+        )
+
+    if task_type in {"BADGE_UPDATE", "PORTFOLIO_BADGE_ROLLOUT"} and is_yes(fields, "BADGE_UPDATE_PREPARED"):
+        return Result(
+            "徽章更新已准备完成",
+            "已完成徽章证据、README 中英文一致性和精确文件范围检查，等待正式更新授权。",
+            "没有变化",
+            True,
+            "确认精确项目范围后，再明确授权普通更新。",
+        )
+
+    if task_type in {"BADGE_UPDATE", "PORTFOLIO_BADGE_ROLLOUT"} and is_yes(fields, "BADGE_UPDATE_SUCCESS"):
+        return Result(
+            "项目徽章已成功更新",
+            "项目徽章更新已写入并完成远程验证。",
+            "已推送代码",
+            False,
+            "本次徽章更新已经完成，无需继续操作。",
+        )
+
     if not is_yes(fields, "GITHUB_WRITE_PERFORMED") and (
         value(fields, "LOCAL_SECURITY_AUDIT") == "PASS" or task_type in {"DISCOVERY_ONLY", "PRE_PUBLISH_AUDIT"}
     ):
@@ -239,6 +272,10 @@ SCENARIOS = [
     ("VISUAL_ASSET_PUBLICATION", {"LOGO_GENERATED": "YES", "COVER_GENERATED": "YES", "HUMAN_VISUAL_REVIEW": "REQUIRED", "GITHUB_WRITE_PERFORMED": "NO"}, "视觉资产已生成，等待人工确认"),
     ("DEPENDABOT_REVIEW", {"REPOSITORY_PUBLISHED": "YES", "CURRENT_TASK_BLOCKED": "YES"}, "当前任务已安全暂停"),
     ("PRE_PUBLISH_AUDIT", {"GITHUB_WRITE_PERFORMED": "NO", "LOCAL_SECURITY_AUDIT": "PASS"}, "当前任务已完成，GitHub 仓库没有变化"),
+    ("BADGE_AUDIT", {"BADGE_ASSESSMENT_COMPLETED": "YES", "QUALITY_CAPABILITY_AUTHORIZATION_REQUIRED": "NO", "GITHUB_WRITE_PERFORMED": "NO"}, "徽章评估已完成"),
+    ("BADGE_AUDIT", {"BADGE_ASSESSMENT_COMPLETED": "YES", "QUALITY_CAPABILITY_AUTHORIZATION_REQUIRED": "YES", "GITHUB_WRITE_PERFORMED": "NO"}, "徽章评估已完成"),
+    ("BADGE_UPDATE", {"BADGE_UPDATE_PREPARED": "YES", "GITHUB_WRITE_PERFORMED": "NO"}, "徽章更新已准备完成"),
+    ("BADGE_UPDATE", {"BADGE_UPDATE_SUCCESS": "YES", "GITHUB_WRITE_PERFORMED": "YES"}, "项目徽章已成功更新"),
     ("INITIAL_PUBLICATION", {"WORKFLOW_SCOPE_PREFLIGHT_REQUIRED": "YES", "WORKFLOW_SCOPE_STATUS": "MISSING", "REPOSITORY_PUBLISHED": "NO", "GITHUB_WRITE_PERFORMED": "NO"}, "GitHub Actions 工作流权限尚未准备完成"),
 ]
 
@@ -256,7 +293,7 @@ def validate_policy_files() -> list[str]:
         "不得削弱任何安全闸门",
     ]
     required_policy_text = [
-        "CHINESE_RESULT_POLICY_VERSION = 2.1",
+        "CHINESE_RESULT_POLICY_VERSION = 2.2",
         "# 用户结果摘要",
         "## 主要检查结果",
         "## 需要处理的问题",

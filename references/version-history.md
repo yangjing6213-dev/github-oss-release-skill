@@ -1,5 +1,13 @@
 # Version history
 
+## 2.2.0 - 2026-08-13
+
+- Added evidence-first badge assessment and validation.
+- Added four badge task types, bilingual result states, references, templates,
+  and RED/GREEN/REFACTOR scenarios.
+- Kept badge assessment read-only and separated quality setup from immediate
+  badge readiness.
+
 ## 2.1.0
 
 - Added exact-manifest workflow detection and planned push protocol/credential

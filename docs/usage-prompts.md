@@ -133,6 +133,22 @@ READY_TO_PUBLISH = YES
 出现高风险问题时立即安全停止。
 ```
 
+### 4. 徽章证据评估
+
+```text
+$github-oss-release
+
+TASK_TYPE = BADGE_AUDIT
+
+评估当前项目徽章，只读，不修改 README，不创建 Workflow，不执行 GitHub 写入。
+输出当前已有徽章、可以立即添加、需要先配置、不适用、不推荐、失效或错误徽章、
+最终推荐顺序，以及是否需要授权新增质量能力。
+```
+
+仅在单个项目完成评估并明确批准后使用 `BADGE_UPDATE`。批量任务必须使用
+`PORTFOLIO_BADGE_AUDIT` 或 `PORTFOLIO_BADGE_ROLLOUT`，并提供精确仓库列表；
+一个仓库失败后不得继续写入其他仓库。
+
 ## 3. 已发布项目更新推送
 
 ### 第一步：更新准备

@@ -8,6 +8,22 @@ in `SKILL.md`.
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-08-13
+
+### Added
+
+- Added evidence-first badge policy and the `BADGE_AUDIT`, `BADGE_UPDATE`,
+  `PORTFOLIO_BADGE_AUDIT`, and `PORTFOLIO_BADGE_ROLLOUT` task types.
+- Added read-only `assess_badges.py` and `validate_badges.py` scripts, badge
+  references, report templates, and RED/GREEN badge scenarios.
+- Added bilingual badge result statuses and quality-setup boundaries without
+  automatically creating CI, CodeQL, Coverage, or dependency workflows.
+
+### Changed
+
+- Updated the Skill, README files, usage prompts, Chinese result policy, and
+  version history to `2.2.0`.
+
 ## [2.1.0] - 2026-08-12
 
 ### Added

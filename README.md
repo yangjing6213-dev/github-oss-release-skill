@@ -4,7 +4,7 @@
 
 `github-oss-release` 是一个社区开源 Codex Skill，用本地证据和只读 GitHub
 证据辅助审计、首次发布、后续更新、迁移、PR/Dependabot 审查、合并和
-Release 发布。当前 Skill 版本为 `2.1.0`。
+Release 发布。当前 Skill 版本为 `2.2.0`。
 
 它不是 GitHub 或 OpenAI 的官方产品，也不代表 GitHub 或 OpenAI。它不能保证
 账号永不受限，也不会自动执行 Star、Fork、Follow、Issue、PR 或 Comment。
@@ -15,6 +15,7 @@ Release 发布。当前 Skill 版本为 `2.1.0`。
 - 在处理脏工作区、旧历史、秘密、许可证、CI 和认证冲突时默认拒绝危险写入。
 - 要求精确文件清单、仅本地发布报告和逐项授权，避免误提交隐私数据或报告。
 - 在工作流文件发生变化时，将 HTTPS 推送凭据与 `workflow` scope 证据绑定并提前预检。
+- 以真实证据评估 CI、License、Release、版本、Coverage、CodeQL 和依赖审计徽章，拒绝静态虚假状态。
 - 在 401、403、429、Push Protection、非快进和目标不明时停止，而不是绕过平台限制。
 
 ## 支持的任务类型
@@ -23,9 +24,25 @@ Release 发布。当前 Skill 版本为 `2.1.0`。
 `PROJECT_UPDATE`、`BRANCH_AND_PR_UPDATE`、`PR_REVIEW`、`PR_MERGE`、
 `DEPENDABOT_REVIEW`、`DEPENDABOT_MERGE`、`RELEASE_PUBLICATION`、
 `REMOTE_MIGRATION`、`AUTH_DIAGNOSIS`、`AUTH_REMEDIATION`、
-`VISUAL_ASSET_PUBLICATION` 和 `INCIDENT_RECOVERY`。
+`VISUAL_ASSET_PUBLICATION`、`BADGE_AUDIT`、`BADGE_UPDATE`、
+`PORTFOLIO_BADGE_AUDIT`、`PORTFOLIO_BADGE_ROLLOUT` 和 `INCIDENT_RECOVERY`。
 
 任务类型只负责路由，不代表已经授权 GitHub 写入。
+
+## 证据优先的徽章评估
+
+徽章是公开事实声明，不是装饰。`BADGE_POLICY = EVIDENCE_FIRST`：只有存在
+与目标 owner、repository、默认分支、Workflow、License、Release、版本或质量
+来源一致的可验证证据时，才推荐徽章。徽章状态分为
+`VERIFIED_READY`、`REQUIRES_QUALITY_SETUP`、`NOT_APPLICABLE`、
+`NOT_RECOMMENDED` 和 `BLOCKED_INVALID_EVIDENCE`。
+
+`BADGE_AUDIT` 只读评估单个项目；`BADGE_UPDATE` 更新一个明确项目；
+`PORTFOLIO_BADGE_AUDIT` 只读评估一个 Owner 下的多个仓库；
+`PORTFOLIO_BADGE_ROLLOUT` 只更新用户明确批准的仓库列表。默认推荐 2–6 个徽章，
+重复含义只保留一个；缺少 CI、CodeQL 或 Coverage 时只报告质量建设建议，不自动创建 Workflow。
+运行 `scripts/assess_badges.py` 生成 JSON 评估，运行 `scripts/validate_badges.py`
+检查 Markdown、URL、归属、中英文 README 一致性和静态虚假徽章。
 
 ## 安装
 
@@ -237,6 +254,7 @@ python scripts/validate_skill.py .
 python scripts/run_scenario_tests.py
 python scripts/validate_chinese_result_policy.py
 python tests/test-scripts.py
+python tests/test_badges.py
 python scripts/validate_utf8.py --root .
 python scripts/check_markdown_links.py .
 python scripts/scan_sensitive_content.py .

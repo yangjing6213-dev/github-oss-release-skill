@@ -10,7 +10,8 @@ state. `Remote Owner` is evidence, not permission.
 `PROJECT_UPDATE` · `BRANCH_AND_PR_UPDATE` · `PR_REVIEW` · `PR_MERGE` ·
 `DEPENDABOT_REVIEW` · `DEPENDABOT_MERGE` · `RELEASE_PUBLICATION` ·
 `REMOTE_MIGRATION` · `AUTH_DIAGNOSIS` · `AUTH_REMEDIATION` ·
-`VISUAL_ASSET_PUBLICATION` · `INCIDENT_RECOVERY`
+`VISUAL_ASSET_PUBLICATION` · `BADGE_AUDIT` · `BADGE_UPDATE` ·
+`PORTFOLIO_BADGE_AUDIT` · `PORTFOLIO_BADGE_ROLLOUT` · `INCIDENT_RECOVERY`
 
 ## Routing rules
 
@@ -37,4 +38,6 @@ state. `Remote Owner` is evidence, not permission.
 | change owner/origin | `REMOTE_MIGRATION` |
 | credentials, 401, 403, token conflict | `AUTH_DIAGNOSIS` / `AUTH_REMEDIATION` |
 | approved logo/cover update | `VISUAL_ASSET_PUBLICATION` |
+| assess or update one project's badges | `BADGE_AUDIT` / `BADGE_UPDATE` |
+| assess or update an exact owner repository list | `PORTFOLIO_BADGE_AUDIT` / `PORTFOLIO_BADGE_ROLLOUT` |
 | platform error or checkpoint recovery | `INCIDENT_RECOVERY` |

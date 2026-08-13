@@ -23,6 +23,8 @@ EXPECTED_SCRIPTS = (
     "inspect_build_artifacts.py",
     "validate_skill.py",
     "run_scenario_tests.py",
+    "assess_badges.py",
+    "validate_badges.py",
 )
 EXPECTED_TEMPLATES = (
     "PRE-PUBLISH-REPORT.md",
@@ -30,6 +32,8 @@ EXPECTED_TEMPLATES = (
     "UPDATE-REPORT.md",
     "DEPENDABOT-REPORT.md",
     "LEGACY-WORKSPACE-DO-NOT-PUSH.md",
+    "BADGE-ASSESSMENT-REPORT.md",
+    "BADGE-PORTFOLIO-REPORT.md",
 )
 APPROVAL_WORDS = {
     "APPROVE_GITHUB_PUBLISH",
@@ -46,6 +50,7 @@ SECRET_RE = re.compile(
 ABS_PATH_RE = re.compile(r"(?<![A-Za-z0-9])(?:[A-Za-z]:\\[A-Za-z0-9_.-]+(?:\\[^\s\"'<>]+)+|/(?:Users|home)/[A-Za-z0-9_.-]+(?:/[^\s\"'<>]+)+)")
 GITHUB_ACCOUNT_RE = re.compile(r"(?:https?://|git@)github\.com[/:]([^/\s]+)/([^\s/#]+)", re.IGNORECASE)
 NAME_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+LOCAL_REPORT_NAMES = {"PRE-PUBLISH-REPORT.md", "POST-PUBLISH-REPORT.md", "UPDATE-REPORT.md", "DEPENDABOT-REPORT.md"}
 
 
 def _read(path: Path) -> str:
@@ -99,6 +104,8 @@ def _iter_text_files(root: Path) -> list[Path]:
     for path in sorted(root.rglob("*"), key=lambda item: str(item).casefold()):
         if not path.is_file() or ".git" in path.parts:
             continue
+        if ".local-audit" in path.parts or ".local-backup" in path.parts or (path.parent == root and path.name in LOCAL_REPORT_NAMES):
+            continue
         try:
             data = path.read_bytes()
         except OSError:
@@ -130,7 +137,9 @@ def _safety_findings(root: Path, project_name: str | None) -> list[dict[str, Any
             for match in GITHUB_ACCOUNT_RE.finditer(line):
                 owner = match.group(1).strip("<>{}[]")
                 repository = match.group(2).strip("<>{}[]")
-                if owner.lower() in {"owner", "org", "user", "username", "example"} or repository.lower() in {"repo", "repository", "project", "example"}:
+                if "{" in line and "}" in line:
+                    continue
+                if owner.lower() in {"owner", "org", "user", "username", "example", "{path}"} or repository.lower() in {"repo", "repository", "project", "example"}:
                     continue
                 findings.append({"path": shown, "line": line_number, "finding_type": "hardcoded_github_account"})
             if project_name and project_name.lower() not in {"github-oss-release", root.name.lower()} and project_name.lower() in line.lower():
@@ -273,6 +282,31 @@ def validate(root_value: str | Path, *, project_name: str | None = None) -> dict
         ],
         "scripts/run_scenario_tests.py": [
             "WORKFLOW_IDS",
+        ],
+        "references/badge-policy.md": [
+            "BADGE_POLICY = EVIDENCE_FIRST",
+            "VERIFIED_READY",
+            "BLOCKED_INVALID_EVIDENCE",
+        ],
+        "references/badge-assessment.md": [
+            "scripts/assess_badges.py",
+            "github_write_performed",
+        ],
+        "references/badge-publication.md": [
+            "BADGE_AUDIT",
+            "workflow-scope-preflight.md",
+        ],
+        "references/portfolio-badge-workflow.md": [
+            "PORTFOLIO_BADGE_AUDIT",
+            "STOP_ON_FIRST_WRITE_FAILURE",
+        ],
+        "scripts/assess_badges.py": [
+            "def assess(",
+            "github_write_performed",
+        ],
+        "scripts/validate_badges.py": [
+            "def validate(",
+            "bilingual_badges_match",
         ],
     }
     workflow_errors: list[dict[str, Any]] = []

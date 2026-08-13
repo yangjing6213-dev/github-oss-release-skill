@@ -5,7 +5,7 @@
 `github-oss-release` is a community open-source Codex Skill for auditing,
 initial publication, project updates, migration, PR and Dependabot review,
 merges, and GitHub Releases using local evidence and read-only platform
-evidence. The current Skill version is `2.1.0`.
+evidence. The current Skill version is `2.2.0`.
 
 It is not an official GitHub or OpenAI product and does not represent either
 company. It cannot guarantee that an account will never be restricted, and it
@@ -17,6 +17,7 @@ does not automatically create Stars, Forks, Follows, Issues, PRs, or Comments.
 - Fails closed around dirty worktrees, unsafe history, secrets, licensing, CI, and authentication conflicts.
 - Requires an exact file manifest, local-only report, and action-specific authorization.
 - Binds HTTPS push credentials to verified `workflow` scope evidence when workflow files change.
+- Assesses CI, License, Release, version, Coverage, CodeQL, and dependency-audit badges from real evidence, rejecting static claims.
 - Stops on 401, 403, 429, Push Protection, non-fast-forward, and unknown targets instead of bypassing controls.
 
 ## Supported task types
@@ -25,9 +26,27 @@ does not automatically create Stars, Forks, Follows, Issues, PRs, or Comments.
 `PROJECT_UPDATE`, `BRANCH_AND_PR_UPDATE`, `PR_REVIEW`, `PR_MERGE`,
 `DEPENDABOT_REVIEW`, `DEPENDABOT_MERGE`, `RELEASE_PUBLICATION`,
 `REMOTE_MIGRATION`, `AUTH_DIAGNOSIS`, `AUTH_REMEDIATION`,
-`VISUAL_ASSET_PUBLICATION`, and `INCIDENT_RECOVERY`.
+`VISUAL_ASSET_PUBLICATION`, `BADGE_AUDIT`, `BADGE_UPDATE`,
+`PORTFOLIO_BADGE_AUDIT`, `PORTFOLIO_BADGE_ROLLOUT`, and `INCIDENT_RECOVERY`.
 
 A task type routes the workflow; it does not authorize a GitHub write.
+
+## Evidence-first badge assessment
+
+A badge is a public factual claim, not decoration. `BADGE_POLICY = EVIDENCE_FIRST`:
+recommend a badge only when verifiable evidence matches the target owner,
+repository, default branch, Workflow, License, Release, version, or quality
+source. Badge statuses are `VERIFIED_READY`, `REQUIRES_QUALITY_SETUP`,
+`NOT_APPLICABLE`, `NOT_RECOMMENDED`, and `BLOCKED_INVALID_EVIDENCE`.
+
+`BADGE_AUDIT` assesses one project read-only; `BADGE_UPDATE` updates one named
+project; `PORTFOLIO_BADGE_AUDIT` assesses multiple repositories read-only;
+`PORTFOLIO_BADGE_ROLLOUT` updates only an explicitly approved repository list.
+Recommend 2–6 badges by default and keep one badge per meaning. Missing CI,
+CodeQL, or Coverage produces a quality-setup recommendation, not an automatic
+Workflow. Run `scripts/assess_badges.py` for JSON assessment and
+`scripts/validate_badges.py` for Markdown, URL, ownership, bilingual README,
+and static-claim validation.
 
 ## Installation
 
@@ -259,6 +278,7 @@ python scripts/validate_skill.py .
 python scripts/run_scenario_tests.py
 python scripts/validate_chinese_result_policy.py
 python tests/test-scripts.py
+python tests/test_badges.py
 python scripts/validate_utf8.py --root .
 python scripts/check_markdown_links.py .
 python scripts/scan_sensitive_content.py .

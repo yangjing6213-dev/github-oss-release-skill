@@ -53,7 +53,7 @@ def _member_findings(name: str, data: bytes, max_bytes: int) -> list[dict[str, s
     path = PurePosixPath(normalized)
     if ".local-audit" in path.parts or ".local-backup" in path.parts:
         findings.append(_finding(normalized, "local_audit_or_backup", "high"))
-    if path.name in LOCAL_REPORT_NAMES:
+    if path.name in LOCAL_REPORT_NAMES and "templates" not in path.parts:
         findings.append(_finding(normalized, "local_only_report", "high"))
     if "backup" in lower or lower.endswith((".bak", ".orig", ".old")):
         findings.append(_finding(normalized, "backup_artifact", "high"))
