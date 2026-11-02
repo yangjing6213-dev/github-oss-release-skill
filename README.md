@@ -110,8 +110,10 @@ $github-oss-release
 
 ## 十二、相关项目
 
-- [GitHub Backup](https://github.com/yangjing6213-dev/GitHub-Backup)：在 Windows 本机备份有权访问的 GitHub 仓库；适合在迁移或维护前留存副本。
-- [Codex Provider Manager](https://github.com/yangjing6213-dev/Codex-Official)：管理 Windows 上的 Codex Provider 配置；适合同时维护本地 AI 工具环境的人。
+- **GitHub Backup**：在 Windows 本机备份有权访问的 GitHub 仓库；适合在迁移或维护前留存副本。
+- **Codex Provider Manager**：管理 Windows 上的 Codex Provider 配置；适合同时维护本地 AI 工具环境的人。
+
+可通过下方作者 GitHub 主页查找这些项目。它们不是本 Skill 的固定发布目标；实际操作时始终以你明确指定的仓库为准。
 
 ## 十三、关于作者
 
@@ -123,7 +125,6 @@ $github-oss-release
 - X / Twitter：[Amenenhe_ai](https://x.com/Amenenhe_ai)
 - 网站：[恩禾 ENHE AI](https://www.enhe-tech.com.cn/)
 - 微信：Hu-Amen
-- 邮箱：[amen.enhe@gmail.com](mailto:amen.enhe@gmail.com)
 
 ## 十四、继续探索
 
