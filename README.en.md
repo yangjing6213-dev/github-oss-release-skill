@@ -1,5 +1,14 @@
 # GitHub OSS Release Skill
 
+> Use local and GitHub evidence to audit or prepare updates, and pause when scope or authorization is unclear.
+
+![Markdown](https://img.shields.io/badge/Markdown-000000?style=flat-square&logo=markdown&logoColor=white) ![YAML](https://img.shields.io/badge/YAML-CB171E?style=flat-square&logo=yaml&logoColor=white) [![MIT](https://img.shields.io/badge/MIT-yellowgreen?style=flat-square)](LICENSE)
+
+
+![Project cover](assets/portfolio-promo-2026-11-02/cover-en.jpg)
+
+中文封面与配图：[封面](assets/portfolio-promo-2026-11-02/cover-zh.jpg) · [配图](assets/portfolio-promo-2026-11-02/overview-zh.jpg)
+
 [简体中文](README.md)
 
 `github-oss-release` is a community open-source Codex Skill for auditing,
@@ -10,6 +19,13 @@ evidence. The current Skill version is `2.2.0`.
 It is not an official GitHub or OpenAI product and does not represent either
 company. It cannot guarantee that an account will never be restricted, and it
 does not automatically create Stars, Forks, Follows, Issues, PRs, or Comments.
+
+## Workflow diagram (AI concept illustration)
+### Workflow illustration (concept only)
+
+![Project workflow concept illustration](assets/portfolio-promo-2026-11-02/overview-en.jpg)
+
+> AI-generated concept illustration: workflow only, not a real interface, runtime data, or result.
 
 ## Problems it addresses
 

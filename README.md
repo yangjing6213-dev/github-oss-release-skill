@@ -1,279 +1,131 @@
 # GitHub 开源项目安全发布 Skill
 
-[English](README.en.md)
+> 在整理、审查和发布 GitHub 项目时，先核对实际文件与远端证据，再按明确授权执行。
 
-`github-oss-release` 是一个社区开源 Codex Skill，用本地证据和只读 GitHub
-证据辅助审计、首次发布、后续更新、迁移、PR/Dependabot 审查、合并和
-Release 发布。当前 Skill 版本为 `2.2.0`。
+![Markdown](https://img.shields.io/badge/Markdown-000000?style=flat-square&logo=markdown&logoColor=white) ![YAML](https://img.shields.io/badge/YAML-CB171E?style=flat-square&logo=yaml&logoColor=white) [![MIT](https://img.shields.io/badge/MIT-yellowgreen?style=flat-square)](LICENSE)
 
-它不是 GitHub 或 OpenAI 的官方产品，也不代表 GitHub 或 OpenAI。它不能保证
-账号永不受限，也不会自动执行 Star、Fork、Follow、Issue、PR 或 Comment。
 
-## 解决的问题
+![GitHub 项目发布 Skill 封面](assets/portfolio-promo-2026-11-02/cover-zh.jpg)
 
-- 区分本地准备完成、远程仓库事实和当前任务结果。
-- 在处理脏工作区、旧历史、秘密、许可证、CI 和认证冲突时默认拒绝危险写入。
-- 要求精确文件清单、仅本地发布报告和逐项授权，避免误提交隐私数据或报告。
-- 在工作流文件发生变化时，将 HTTPS 推送凭据与 `workflow` scope 证据绑定并提前预检。
-- 以真实证据评估 CI、License、Release、版本、Coverage、CodeQL 和依赖审计徽章，拒绝静态虚假状态。
-- 在 401、403、429、Push Protection、非快进和目标不明时停止，而不是绕过平台限制。
+[English README](README.en.md) · [English cover](assets/portfolio-promo-2026-11-02/cover-en.jpg) · [English overview](assets/portfolio-promo-2026-11-02/overview-en.jpg)
 
-## 支持的任务类型
+这是一个供支持 Agent Skills 的 AI 工具使用的开源项目发布 Skill。你给它一个明确的仓库和任务，它会先梳理本地与 GitHub 证据，再协助准备审查、更新、迁移或发布步骤。涉及远端写入时，必须由你明确授权具体目标与文件范围。
 
-`DISCOVERY_ONLY`、`PRE_PUBLISH_AUDIT`、`INITIAL_PUBLICATION`、
-`PROJECT_UPDATE`、`BRANCH_AND_PR_UPDATE`、`PR_REVIEW`、`PR_MERGE`、
-`DEPENDABOT_REVIEW`、`DEPENDABOT_MERGE`、`RELEASE_PUBLICATION`、
-`REMOTE_MIGRATION`、`AUTH_DIAGNOSIS`、`AUTH_REMEDIATION`、
-`VISUAL_ASSET_PUBLICATION`、`BADGE_AUDIT`、`BADGE_UPDATE`、
-`PORTFOLIO_BADGE_AUDIT`、`PORTFOLIO_BADGE_ROLLOUT` 和 `INCIDENT_RECOVERY`。
+[安装](#六安装与快速开始) · [只读检查](#七如何使用) · [版本](#十一版本说明)
 
-任务类型只负责路由，不代表已经授权 GitHub 写入。
+> 本项目是社区 Skill，不是 GitHub 或 OpenAI 的官方产品。它不替你绕过账号验证、平台限制或仓库保护。
 
-## 证据优先的徽章评估
+## 一、这个项目是什么？
 
-徽章是公开事实声明，不是装饰。`BADGE_POLICY = EVIDENCE_FIRST`：只有存在
-与目标 owner、repository、默认分支、Workflow、License、Release、版本或质量
-来源一致的可验证证据时，才推荐徽章。徽章状态分为
-`VERIFIED_READY`、`REQUIRES_QUALITY_SETUP`、`NOT_APPLICABLE`、
-`NOT_RECOMMENDED` 和 `BLOCKED_INVALID_EVIDENCE`。
+它是一套供 AI Agent 使用的项目发布操作指南。Skill 是指导 AI 按指定流程处理工作的说明文件，需要在支持 Agent Skills 的工具中安装和调用；它不是 GitHub 网页应用，也不会脱离 AI 工具自行运行。
 
-`BADGE_AUDIT` 只读评估单个项目；`BADGE_UPDATE` 更新一个明确项目；
-`PORTFOLIO_BADGE_AUDIT` 只读评估一个 Owner 下的多个仓库；
-`PORTFOLIO_BADGE_ROLLOUT` 只更新用户明确批准的仓库列表。默认推荐 2–6 个徽章，
-重复含义只保留一个；缺少 CI、CodeQL 或 Coverage 时只报告质量建设建议，不自动创建 Workflow。
-运行 `scripts/assess_badges.py` 生成 JSON 评估，运行 `scripts/validate_badges.py`
-检查 Markdown、URL、归属、中英文 README 一致性和静态虚假徽章。
+它覆盖只读审查、准备项目更新、PR/Dependabot 审查、迁移与 Release 等任务。具体执行能力还取决于当前环境提供的本地工具、GitHub 连接和权限。
 
-## 安装
+## 二、先看效果
 
-使用可信的 Codex Skill Installer 导入本仓库根目录，或将仓库完整复制到 Codex
-的 Skills 目录并命名为 `github-oss-release`。安装后确认以下内容存在：
+![项目发布工作流概念示意](assets/portfolio-promo-2026-11-02/overview-zh.jpg)
 
-- `SKILL.md`
-- `agents/`
-- `references/`
-- `scripts/`
-- `templates/`
-- `tests/`
+> AI 概念插画：表现“本地检查—远端核对—逐项授权—结果复查”，不是实际发布成功截图。
 
-不要把凭据写入仓库 URL、配置、日志或 Skill 文件。安装完成后在新任务中调用。
+典型输入包括目标仓库、要做的事、允许修改的路径和当前项目状态；输出可以是审查结论、修改清单或经授权操作后的结果。插画不代表 GitHub 已写入或发布。
 
-## 调用
+## 三、适合谁用？
 
-在 Codex 任务中明确写出 Skill 名称、一个任务类型、目标 owner/repository 和预期动作：
+### 特别适合
+- 需要把 AI 生成的项目整理成可审查、可维护 GitHub 仓库的创作者。
+- 经常处理 README、许可证、徽章、分支、PR 或版本发布的人。
+- 希望写入前看到准确文件清单，并保留人工授权边界的项目维护者。
+
+### 不适合
+- 想让 AI 不经审查自动推送整个工作区的人。
+- 希望绕过账号验证、分支保护、Push Protection 或平台规则的人。
+- 当前 AI 工具不支持 Skills，也无法提供所需 GitHub 或本地工具的人。
+
+## 四、你会得到什么？
+
+按任务不同，你会得到只读审查意见、证据支持的改进清单、徽章核验结果、待发布文件清单，或经授权操作后的远端结果。徽章评估脚本可以输出 JSON；本地报告和断点续跑行为见 [说明](references/local-reports-and-resume.md)。
+
+## 五、它能帮你解决什么问题？
+
+发布前常见的麻烦是本地内容与远端状态不同步、改错分支、遗漏许可证，或把未验证的 CI 徽章当成事实。这个 Skill 把证据核对、范围确认和授权拆成清楚步骤。
+
+它能帮助你先看清哪些文件会发生变化；提交、推送、合并、发布和迁移仍需符合你的任务授权，并由你检查最终结果。它不能保证账号永不受限或发布必然成功。
+
+## 六、安装与快速开始
+
+需要一个支持 Agent Skills 的 AI 工具。若使用本地 GitHub 写入，还需要相应 Git 工具、GitHub 连接或已配置的认证；具体取决于你的环境。
+
+使用可信的 Skill Installer 导入本仓库根目录，或把 Skill 文件按工具要求安装到 Skills 目录。安装后确认 <code>SKILL.md</code>、<code>agents/</code>、<code>references/</code>、<code>scripts/</code> 和 <code>templates/</code> 等文件可读取。随后先做只读审查：
 
 ```text
-Use $github-oss-release
+$github-oss-release
 TASK_TYPE = PRE_PUBLISH_AUDIT
 Target = <owner>/<repository>
 Action = audit only; no GitHub write
 ```
 
-如果任务类型、目标或动作无法验证，Skill 应提出一个聚焦问题并保持只读。
+把尖括号中的仓库信息替换为目标；成功标准是先得到审查结论，而不是发生远端改动。
 
-## 常用操作提示词
+## 七、如何使用？
 
-先打开真实项目根目录，在 Codex 中新建任务并调用 `$github-oss-release`。把
-`<github-owner>`、`<repository-name>`、`<owner/repository>` 和
-`<public-or-private>` 替换为目标信息。建议先做只读发布前检查，检查通过后再授权
-普通 Push；不要使用 Force Push。本地 PRE/POST/UPDATE 报告会保持忽略，不进入公开仓库。
-
-### 1. 推送前检查
+中文示例：
 
 ```text
 $github-oss-release
-
-TASK_TYPE = PRE_PUBLISH_AUDIT
-
-对当前项目执行完整 GitHub 发布前检查。
-
-目标 GitHub 账号：
-<github-owner>
-
-目标仓库名称：
-<repository-name>
-
-本轮只读。生成仅保存在本地的 PRE-PUBLISH-REPORT，禁止修改项目、Commit、Push
-或任何 GitHub 写入。优先使用简体中文返回结果。
+请只审查当前项目的 README、许可证、徽章和远端分支状态。
+目标仓库：<owner>/<repository>
+先给我证据与准确文件清单，不要提交或推送。
 ```
 
-### 2. 新项目首次推送
+如果后续确实要写入，应给出目标分支、允许变更的确切文件和明确动作；每次提交、推送、合并或发布前都检查实际差异。含糊授权或超出范围的改动应停止。
 
-第一步，准备并生成本地报告：
+## 八、项目工作流程
 
-```text
-$github-oss-release
+确认目标与任务 → 阅读本地项目和远端证据 → 分类风险与缺失信息 → 生成审查报告和文件清单 → 你确认具体写入范围 → 执行允许的步骤 → 复核远端结果。
 
-TASK_TYPE = INITIAL_PUBLICATION
+只读审查不等于写入授权；Skill 也不会把任务类型自动当作授权。
 
-对当前项目执行首次 GitHub 开源发布准备。
+## 九、项目目录结构
 
-目标 GitHub 账号：
-<github-owner>
+- <code>SKILL.md</code>：Skill 入口。
+- <code>agents/</code>：Agent 配置。
+- <code>references/</code>：发布、迁移、认证、徽章和 PR 处理说明。
+- <code>scripts/</code>：徽章评估与校验工具。
+- <code>templates/</code>：报告或项目文件模板。
+- <code>tests/</code>：仓库自带的校验用例。
 
-目标仓库名称：
-<repository-name>
+## 十、注意事项与常见问题
 
-目标仓库可见性：
-<public-or-private>
+- **能保证账号安全吗？** 不能。它能帮助发现部分风险并拒绝越界操作，但不能保证平台不会限制账号。
+- **会自动打 Star、发 Issue 或评论吗？** 不会把这些操作作为自动推广；不符合平台规则的请求不应执行。
+- **CI、CodeQL 和覆盖率徽章可以直接加吗？** 不行。先要有与目标仓库、工作流和状态相符的证据；没有证据时不把徽章当装饰添加。
+- **认证失败怎么办？** 检查账号、仓库权限和本地认证状态；遇到 401/403/429 或平台保护时按说明停止，不尝试绕过。
+- **会把私密报告推到仓库吗？** 本地报告默认不应进入公开仓库；每次仍需核对提交文件清单和忽略规则。
 
-本轮不 Commit、不创建远程仓库、不 Push。
-```
+仓库采用 [MIT License](LICENSE)。
 
-第二步，仅在 `READY_TO_PUBLISH = YES` 且状态未漂移时授权：
+## 十一、版本说明
 
-```text
-$github-oss-release
+仓库 README 标明当前 Skill 版本为 <code>2.2.0</code>。详细变更见 [CHANGELOG.md](CHANGELOG.md)。版本号说明 Skill 文件版本，不代表 GitHub 平台版本。
 
-APPROVE_GITHUB_PUBLISH
+## 十二、相关项目
 
-继续当前 INITIAL_PUBLICATION 任务。
+- [GitHub Backup](https://github.com/yangjing6213-dev/GitHub-Backup)：在 Windows 本机备份有权访问的 GitHub 仓库；适合在迁移或维护前留存副本。
+- [Codex Provider Manager](https://github.com/yangjing6213-dev/Codex-Official)：管理 Windows 上的 Codex Provider 配置；适合同时维护本地 AI 工具环境的人。
 
-授权 GitHub 账号：
-<github-owner>
+## 十三、关于作者
 
-授权目标仓库：
-<owner/repository>
+**Enhe（恩禾）｜产品设计师 · 一人公司实践者 · AI Builder**
 
-授权仓库可见性：
-<public-or-private>
+用 AI 打造一人公司。
 
-只使用精确文件清单、普通 Commit 和普通 Push；禁止 Force Push、覆盖非空仓库、
-提交本地报告或创建 Tag/Release。出现高风险问题时立即安全停止。
-```
+- GitHub：[yangjing6213-dev](https://github.com/yangjing6213-dev)
+- X / Twitter：[Amenenhe_ai](https://x.com/Amenenhe_ai)
+- 网站：[恩禾 ENHE AI](https://www.enhe-tech.com.cn/)
+- 微信：Hu-Amen
+- 邮箱：[amen.enhe@gmail.com](mailto:amen.enhe@gmail.com)
 
-### 3. 已发布项目更新推送
+## 十四、继续探索
 
-第一步，只准备本次更新：
+我把这套 Skill 用于整理项目发布流程，希望把容易遗漏的证据、授权和复核步骤讲清楚。如果你也在用 AI 维护或分享自己的项目，可以到 [恩禾 ENHE AI](https://www.enhe-tech.com.cn/) 继续看看相关创作与工具实践。
 
-```text
-$github-oss-release
-
-TASK_TYPE = PROJECT_UPDATE
-
-对当前已经发布的 GitHub 项目执行安全更新准备。
-
-目标 GitHub 账号：
-<github-owner>
-
-区分本次修改和已有无关修改，检查远程、Workflow、Secret、License 与质量闸门，
-生成仅保存在本地的 PRE-PUBLISH-REPORT。本轮不 Commit、不 Push、不创建 Pull Request。
-```
-
-第二步，只提交报告已批准的文件：
-
-```text
-$github-oss-release
-
-APPROVE_GITHUB_PUBLISH
-
-继续当前 PROJECT_UPDATE 任务。
-
-授权 GitHub 账号：
-<github-owner>
-
-只允许提交 PRE-PUBLISH-REPORT 已批准的本次修改。使用精确 Staging 和普通 Push；
-main 要求 PR 时创建更新分支和 Pull Request，但不得自动合并或绕过保护。
-```
-
-- [完整操作提示词](docs/usage-prompts.md)
-
-## 首次发布流程
-
-1. 发现项目结构、版本、真实命令、Git 状态和既有远程。
-2. 只记录认证是否存在、账号身份和调用结果，不显示凭据值。
-3. 验证目标仓库不存在或为空；非空目标改走既有远程流程，禁止覆盖。
-4. 选择保留安全历史、隔离干净工作区或全新公开历史策略。
-5. 检查标准文件、秘密/隐私、第三方许可、质量、UTF-8、链接和构建产物。
-6. 生成精确相对路径清单与被 Git 忽略的本地 `PRE-PUBLISH-REPORT.md`。
-7. 仅当报告为 `READY_TO_PUBLISH = YES` 且用户提供精确
-   `APPROVE_GITHUB_PUBLISH` 时，才允许按清单暂存、普通提交和普通推送。
-8. 远程写入后重新验证目标、提交、CI/CodeQL/Dependabot 状态并输出中文结果。
-
-本 Skill 禁止 `git add .`、`git add -A`、force-push、历史重写和绕过 Push
-Protection。历史排除或修复需要单独的 `APPROVE_GIT_HISTORY_REMEDIATION`。
-
-## 后续更新
-
-先比较本地/远程 HEAD、分支、工作区所有权和变更归属。干净且低风险的明确更新
-可以选择普通直推；混合、较大或需要审查的更新使用分支和 PR。任何路径都必须
-重新运行受影响闸门、生成精确清单并取得与目标和动作一致的授权。若本次更新
-修改 `.github/workflows/**`，还必须在 Push 前完成与实际 HTTPS 凭据一致的
-`workflow` scope 预检。
-
-## PR 与 Dependabot
-
-- `PR_REVIEW` 和 `DEPENDABOT_REVIEW` 默认只读。
-- 合并只限指定 PR，并需要 `APPROVE_GITHUB_PR_MERGE`。
-- 逐个检查版本跨度、发布说明、变更文件、依赖关系、CI 和安全风险。
-- 一个批准不得扩展到其他 PR、分支、仓库、Release 或设置。
-
-## Remote 迁移
-
-迁移前核对旧/新 owner、仓库状态、历史关系、权限和本地链接。旧 remote 只是证据，
-不能被静默采用或重写。非快进或非空目标必须停止，使用正常分支/PR 或安全快进整合，
-不得 force-push。
-
-## GitHub 认证冲突
-
-Skill 只记录 `GH_TOKEN`/`GITHUB_TOKEN` 是否设置、CLI/API/SSH 账号身份和调用结果，
-不读取或输出 token。环境 token 可能遮蔽安全存储的 CLI 凭据，因此需要在临时干净
-子进程中做一次诊断。401、403 或 429 最多做一次诊断并停止；不得轮换账号、IP、
-代理或绕过限制。
-
-## 授权词
-
-- `APPROVE_GITHUB_PUBLISH`：指定项目、owner/repository、批准文件、普通提交/推送和写后验证。
-- `APPROVE_GITHUB_PR_MERGE`：仅指定 PR。
-- `APPROVE_GITHUB_RELEASE`：仅指定 tag/release。
-- `APPROVE_GIT_HISTORY_REMEDIATION`：仅指定历史操作。
-- `APPROVE_REMOTE_DESTRUCTIVE_CHANGE`：仅指定破坏性远程操作。
-- `APPROVE_GITHUB_WORKFLOW_SCOPE_REFRESH`：仅允许为已验证账号刷新一次 `workflow` scope；发布授权不会自动包含它。
-
-授权不能跨 owner、仓库、分支、PR、Release、设置或秘密复用。
-
-## 断点续跑
-
-恢复状态保存在被忽略的 `.local-audit/github-oss-release-state.json`。恢复时比较项目
-HEAD 和相关文件哈希，只让输入变化的闸门失效；owner、仓库、分支、批准范围或目标
-状态变化时，不得恢复任何写入动作。
-
-## 中文结果反馈
-
-最终结果先输出 `# 用户结果摘要`，再给出中文检查表；仅在确有问题时显示问题，
-机器字段放入 `## 技术详情`。仓库既有事实和当前任务状态必须分开，最终只给一个
-主要下一步。完整规则见 [中文结果政策](references/chinese-result-policy.md)。
-
-## 测试
-
-项目没有运行时包管理器；验证脚本使用 Python 标准库，YAML 检查可选使用已安装的
-PyYAML，否则使用保守的基础语法检查。
-
-```powershell
-python scripts/validate_skill.py .
-python scripts/run_scenario_tests.py
-python scripts/validate_chinese_result_policy.py
-python tests/test-scripts.py
-python tests/test_badges.py
-python scripts/validate_utf8.py --root .
-python scripts/check_markdown_links.py .
-python scripts/scan_sensitive_content.py .
-```
-
-fallback 敏感内容扫描不等同于 Gitleaks/TruffleHog 的完整工作区、索引、refs 和历史扫描。
-只有存在 zip/tar 等构建产物时才运行 `inspect_build_artifacts.py`；没有产物时它应报告
-`NOT_CONFIGURED`，不应被改写为通过。
-
-## 安全边界
-
-- 默认 `READ_ONLY`；计划、部分测试、登录或本地文件不是远程发布证据。
-- 不显示 token、私有邮箱、Cookie、Session、私钥或私人数据。
-- 不自动修复账号、切换凭据、改 remote、删除工作区或绕过平台限制。
-- 不承诺 CI、CodeQL、许可证、第三方资产或平台策略在未验证时通过。
-- 不用于虚假互动、凭据窃取、恶意基础设施、未授权攻击或未授权个人数据发布。
-
-## License 与支持
-
-本项目采用 [MIT License](LICENSE)，版权归 `ENHE AI Studio`（2026）所有。
-贡献规则见 [CONTRIBUTING.md](CONTRIBUTING.md)，安全漏洞请按 [SECURITY.md](SECURITY.md)
-私下报告，普通问题见 [SUPPORT.md](SUPPORT.md)。
